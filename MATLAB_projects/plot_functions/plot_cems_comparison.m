@@ -39,7 +39,7 @@ idx = find(ploty >= 0.8);
 fprintf('%3.1f percent of boilers have less than %3.2f mg/MWh difference from CEMS\n', ploty(idx(1))*100, plotx(idx(1))); 
 
 xlabel('Difference of bootstrapped and CEMS Hg emission factor (mg/MWh)');
-ylabel('Boilers'); 
+ylabel('F(x)'); 
 
 set(gca,'FontName','Arial','FontSize',13)
 a=gca;

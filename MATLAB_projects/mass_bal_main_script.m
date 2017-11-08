@@ -215,6 +215,7 @@ plot_cems_comparison(comp_boot_cems_hg)
 
 % summary statistics - median of CEMS, estimates, and difference of CEMS
 % and estimates
+disp('median CEMS emf, median bootstrap emf, and median difference emf'); 
 median(comp_boot_cems_hg.cems_hg_emf_mg_MWh)
 median(comp_boot_cems_hg.med_hg_emf_stack)
 median(comp_boot_cems_hg.med_hg_emf_stack - comp_boot_cems_hg.cems_hg_emf_mg_MWh)
