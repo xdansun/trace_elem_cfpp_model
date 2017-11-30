@@ -7,7 +7,7 @@ function [output_cell, study_name, apcd_combo, waste_stream_fractions] = brown_1
 
 %% define study name and air pollution control combination
 study_name = 'Brown et al. FF (1999)'; 
-apcd_combo = 300; 
+apcd_combo = 400; 
 
 %% boiler 
 bot_ash_output = [0 nan nan nan]*10^-2;

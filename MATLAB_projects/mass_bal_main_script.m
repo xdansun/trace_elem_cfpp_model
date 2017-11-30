@@ -45,6 +45,7 @@ coal_gen_boiler_apcd = outerjoin(coal_gen_boiler_apcd,boiler_hg,'Type','left','M
 % PM control is hundreds place
 % NOx control is tens place
 % mercury control is ones place 
+%%
 coal_gen_boiler_apcd = identify_apcd_base10(coal_gen_boiler_apcd); 
 
 %% Produce Figure 2 - partitioning of trace elements by study in the literature
@@ -143,6 +144,8 @@ end
 disp('minimum and maximum median partitioning of boilers in the fleet for trace element'); 
 min(meds)
 max(meds)
+
+% error('success'); 
 
 %% Produce Figure 4 - median waste stream factors of trace elements for CFPPs included in analysis 
 % prepare data for emissions across the US 
@@ -252,7 +255,7 @@ overest_hg(:,end+1) = array2table(foo);
 
 disp('end of main paper'); 
 %% End of main paper - Begin SI 
-%% SI Section 2 - calculate generation associated with air pollution controls  
+%% SI Section 3 - calculate generation associated with air pollution controls  
 % determine generation across the fleet for single apcd type 
 % gen_pm_ctrls, gen_so2_ctrls, gen_nox_ctrls, and gen_hg_ctrls are used to
 % make Table S1
@@ -316,8 +319,215 @@ end
 num_cap_gen_cf(i,4) = num_cap_gen_cf(i,3)/(num_cap_gen_cf(i,2)*8760); 
 subrgn_coal_summary = horzcat(subrgn_list, table2cell(array2table(num_cap_gen_cf))); 
 
-%% SI - variability of coal samples in COALQUAL
+%% SI - variability in coal purchases in 2010 
+% for each plant, figure out which county has the largest coal purchases
+disp('ignore total percent generation ... outputs in this section'); 
+[coal_gen_boilers_2010, coal_purchases_2010] = ...
+    compile_coal_purchases(coal_gen_boilers, ann_coal_gen, 2010); % import coal_purchases in 2010
+plant_top_county_purch = zeros(size(unique(coal_purchases_2010.Plant_Id),1), 14);
+plant_top_county_purch(:,1) = unique(coal_purchases_2010.Plant_Id); 
+for i = 1:size(plant_top_county_purch,1)
+    purchases_by_plant = coal_purchases_2010(coal_purchases_2010.Plant_Id == plant_top_county_purch(i,1),:); 
+    county_purch_at_plant = unique(purchases_by_plant.county); 
+    for j = 1:size(county_purch_at_plant,1)
+        county_purch_at_plant(j,2) = sum(purchases_by_plant.QUANTITY(purchases_by_plant.county == county_purch_at_plant(j)));
+    end 
+    plant_top_county_purch(i,2) = county_purch_at_plant(max(county_purch_at_plant(:,2)) == county_purch_at_plant(:,2),1); 
+end 
 
+% for each plant, at each month, calculate fraction of coal from county
+% with most purchases divided by total purchases that month
+for i = 1:size(plant_top_county_purch,1)
+    purchases_by_plant = coal_purchases_2010(coal_purchases_2010.Plant_Id == plant_top_county_purch(i,1),:); 
+    for j = 1:12
+        purchases_month_by_plant = purchases_by_plant(purchases_by_plant.MONTH == j,:);
+        plant_top_county_purch(i,j+2) = sum(purchases_month_by_plant.QUANTITY(...
+            purchases_month_by_plant.county == plant_top_county_purch(i,2)),'omitnan')/...
+            sum(purchases_month_by_plant.QUANTITY,'omitnan'); 
+    end 
+end 
+
+% keep power plants that are modeled in manuscript, merge generation 
+plant_top_county_purch = array2table(plant_top_county_purch); 
+plant_top_county_purch.Properties.VariableNames(1) = {'Plant_Code'}; 
+plant_top_county_purch = innerjoin(plant_top_county_purch, unique(plant_gen));
+plant_top_county_purch = table2array(sortrows(plant_top_county_purch,'Gen_MWh','descend'));
+
+plant_top_county_purch(:,end+1) = 0;
+for i = 1:size(plant_top_county_purch,1)
+    plant_top_county_purch(i,end) = max(plant_top_county_purch(i,3:14)) - min(plant_top_county_purch(i,3:14));
+end 
+%% plot results for the first five plants 
+close all;
+figure('Color','w','Units','inches','Position',[0.25 0.25 4 4]) % was 1.25
+axes('Position',[0.2 0.18 0.75 0.75]) % x pos, y pos, x width, y height
+k = 1;
+% figure('Color','w','Units','inches','Position',[0.25 0.25 8 8]) % was 1.25
+% axes('Position',[0.2 0.15 0.75 0.75]) % x pos, y pos, x width, y height
+% for k = 1:4 
+%     subplot(2,2,k);
+%     color = {'r','k','b','g'}; 
+%     hold on; 
+%     if k == 1
+%         set(gca, 'Position', [0.15 0.6 0.3 0.33])
+%     elseif k == 2
+%         set(gca, 'Position', [0.6 0.6 0.3 0.33])
+%     elseif k == 3
+%         set(gca, 'Position', [0.15 0.15 0.3 0.33])
+%     elseif k == 4
+%         set(gca, 'Position', [0.6 0.15 0.3 0.33])
+%     end 
+
+    idx = (5*(k-1)+1):5*k;
+    
+    plot(1:12, plant_top_county_purch(idx, 3:14),'*--');
+
+    xlabel('Months');
+    ylabel({'Fraction of coal purchase by','county that supplies the most coal'}); 
+    
+    set(gca,'FontName','Arial','FontSize',13)
+    a=gca;
+    set(a,'box','off','color','none')
+    b=axes('Position',get(a,'Position'),'box','on','xtick',[],'ytick',[]);
+    axes(a)
+    linkaxes([a b])
+    axis([1 12 0 1]);
+    a.XTick = 1:3:12; 
+    a.XTickLabel = {'Jan','April','Jul','Oct'};
+    legend(cellstr(num2str(plant_top_county_purch(idx,1), '%-d')));
+    legend boxoff;
+
+% end 
+sum(plant_top_county_purch(1:20,15))/ann_coal_gen
+
+%% plot difference between min and max of each plant 
+histogram(plant_top_county_purch(:,end),'BinWidth',0.1);
+    
+%% SI - variability of coal samples in COALQUAL
+% extract coalqual data 
+[num,txt,raw] = xlsread('../data/coalqual/coalqual_upper_wfips.xlsx','data'); % pull coalqual upper level with fips data  
+
+coalqual_samples = cell2table(raw(2:end,:)); % name the coalqual data as strat_table 
+coalqual_samples.Properties.VariableNames = raw(1,:); % set the table headers 
+
+%%
+cq_county_min_max = unique(coalqual_samples.fips_code);
+cq_county_min_max(1,:) = []; % remove first row, which is fips code = 0; 
+for i = 1:size(cq_county_min_max,1)
+    cq_county_min_max(i,2) = max(coalqual_samples.Hg(coalqual_samples.fips_code == cq_county_min_max(i,1))) - ...
+        min(coalqual_samples.Hg(coalqual_samples.fips_code == cq_county_min_max(i,1)));
+    cq_county_min_max(i,3) = max(coalqual_samples.Se(coalqual_samples.fips_code == cq_county_min_max(i,1))) - ...
+        min(coalqual_samples.Se(coalqual_samples.fips_code == cq_county_min_max(i,1)));
+    cq_county_min_max(i,4) = max(coalqual_samples.As(coalqual_samples.fips_code == cq_county_min_max(i,1))) - ...
+        min(coalqual_samples.As(coalqual_samples.fips_code == cq_county_min_max(i,1)));
+    cq_county_min_max(i,5) = max(coalqual_samples.Cl(coalqual_samples.fips_code == cq_county_min_max(i,1))) - ...
+        min(coalqual_samples.Cl(coalqual_samples.fips_code == cq_county_min_max(i,1)));
+end 
+
+%% plot as cdf
+
+close all;
+figure('Color','w','Units','inches','Position',[0.25 0.25 4 4]) % was 1.25
+axes('Position',[0.18 0.2 0.75 0.75]) % x pos, y pos, x width, y height
+
+% divide_array = [0.6 15 40 2100]; % defined based on the max_trace, but it's an arbitrary rule, so there's no way to automate this process
+% scale = max(divide_array); 
+color = {'r','k','b','g'}; 
+hold on;
+
+for k = 4%:4
+%     subplot(2,2,k);
+
+    plotx = sort(cq_county_min_max(:,k+1)); 
+    plotx(isnan(plotx)) = []; 
+    ploty = linspace(0,1,size(plotx,1));
+    
+    if k == 1
+        h = plot(plotx,ploty,'--');
+    elseif k == 2
+        h = plot(plotx,ploty,'-.');
+    elseif k == 3
+        h = plot(plotx,ploty,':');
+    elseif k == 4
+        h = plot(plotx,ploty,'-');
+    end 
+    set(h,'LineWidth',1.8,'Color',color{k});
+
+end
+ylabel('F(x)'); 
+xlabel({'Difference of max and min', 'concentration at each county (ppm)'}); 
+set(gca,'FontName','Arial','FontSize',13)
+a=gca;
+set(a,'box','off','color','none')
+% ylim([0 1]);
+% axis([0 scale 0 1]);
+axis([0 4000 0 1]);
+b=axes('Position',get(a,'Position'),'box','on','xtick',[],'ytick',[]);
+axes(a)
+linkaxes([a b])
+% a.XTick = linspace(0, 2100, 5); 
+% a.XTickLabel = {'1','2','3','4'};
+% legend(['Difference between' char(10) 'bootstrap and MATS ICR'],'MATS ICR');
+legendcells = {'Mercury','Selenium','Arsenic','Chlorine'};
+legend(legendcells(k),'Location','SouthEast');
+legend boxoff;
+
+% histogram();
+
+%% 
+cq_county_med = unique(coalqual_samples.fips_code);
+cq_county_med(1,:) = []; % remove first row, which is fips code = 0; 
+for i = 1:size(cq_county_med,1)
+    cq_county_med(i,2) = median(coalqual_samples.Hg(coalqual_samples.fips_code == cq_county_med(i,1)));
+    cq_county_med(i,3) = median(coalqual_samples.Se(coalqual_samples.fips_code == cq_county_med(i,1)));
+    cq_county_med(i,4) = median(coalqual_samples.As(coalqual_samples.fips_code == cq_county_med(i,1)));
+    cq_county_med(i,5) = median(coalqual_samples.Cl(coalqual_samples.fips_code == cq_county_med(i,1)));
+end 
+%%
+close all;
+figure('Color','w','Units','inches','Position',[0.25 0.25 4 4]) % was 1.25
+axes('Position',[0.18 0.18 0.75 0.75]) % x pos, y pos, x width, y height
+
+% divide_array = [0.6 15 40 2100]; % defined based on the max_trace, but it's an arbitrary rule, so there's no way to automate this process
+% scale = max(divide_array); 
+color = {'r','k','b','g'}; 
+hold on;
+
+for k = 4%:4
+%     subplot(2,2,k);
+
+    plotx = sort(cq_county_med(:,k+1)); 
+    plotx(isnan(plotx)) = []; 
+    ploty = linspace(0,1,size(plotx,1));
+    
+    if k == 1
+        h = plot(plotx,ploty,'--');
+    elseif k == 2
+        h = plot(plotx,ploty,'-.');
+    elseif k == 3
+        h = plot(plotx,ploty,':');
+    elseif k == 4
+        h = plot(plotx,ploty,'-');
+    end 
+    set(h,'LineWidth',1.8,'Color',color{k});
+
+end
+ylabel('F(x)'); 
+xlabel('Median concentration by county (ppm)'); 
+set(gca,'FontName','Arial','FontSize',13)
+a=gca;
+set(a,'box','off','color','none')
+% ylim([0 1]);
+% axis([0 scale 0 1]);
+b=axes('Position',get(a,'Position'),'box','on','xtick',[],'ytick',[]);
+axes(a)
+linkaxes([a b])
+% a.XTick = linspace(0, 2100, 5); 
+% a.XTickLabel = {'1','2','3','4'};
+% legend(['Difference between' char(10) 'bootstrap and MATS ICR'],'MATS ICR');
+legendcells = {'Mercury','Selenium','Arsenic','Chlorine'};
+legend(legendcells(k),'Location','SouthEast');
+legend boxoff;
 
 %% SI Section 3 - calculate fraction of coal purchases that are prepared 
 % see directory SI_coal_prep, load 'coal_prep_data.mat', run line 105 in
@@ -330,10 +540,6 @@ subrgn_coal_summary = horzcat(subrgn_list, table2cell(array2table(num_cap_gen_cf
 
 % estimate trace element concentration in coal blends using 2010 coal
 % purchase data
-% input 2010 coal purchases 
-disp('ignore (total percent generation lost) outputs from script');
-[coal_gen_boilers_2010, coal_purchases_2010] = ...
-    compile_coal_purchases(coal_gen_boilers, ann_coal_gen, 2010); 
 % create 2010 distribution of trace element concentrations in coal at the plant level 
 [cq_hg_2010, cq_se_2010, cq_as_2010, cq_cl_2010] = coalqual_dist(coal_gen_boiler_apcd, coal_purchases_2010, haps_sampling_months);
 boot_cq_TE_2010 = boot_coal_blend_conc(coal_gen_boiler_apcd, cq_hg_2010, cq_se_2010, cq_as_2010, cq_cl_2010, trials);

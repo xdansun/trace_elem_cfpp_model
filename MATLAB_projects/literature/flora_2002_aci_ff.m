@@ -9,7 +9,7 @@ function [output_cell, study_name, apcd_combo] = flora_2002_aci_ff
 
 %% define study name and air pollution control combination
 study_name = 'Flora et al. (2002)'; 
-apcd_combo = 301; 
+apcd_combo = 401; 
 
 %% boiler 
 bot_ash_output = [0 nan nan nan]*10^-2;

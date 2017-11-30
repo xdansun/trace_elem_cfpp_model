@@ -11,14 +11,15 @@ function [lit_phases_by_TE, legend_cell] = plot_TE_partition_v2(lit_removal)
 % wFGD + hsESP, 1210 is wFGD+hsESP+SCR, 1300 FF+wFGD, 1301 ACI+FF+wFGD, etc
 % it may be worth only showing control combinations we have data for 
 
-%% 
+%% convert lit_removal to cell for plot
 lit_to_plot = cell2table(lit_removal); 
-lit_to_plot.lit_removal2(11) = 503;
-lit_to_plot.lit_removal2(20) = 501;
-lit_to_plot.lit_removal2(21) = 502;
+lit_to_plot.lit_removal2(11) = 703; % set NRMRL to arbitrarily large apcd codes so that the plot can plot them in the correct order 
+lit_to_plot.lit_removal2(20) = 701;
+lit_to_plot.lit_removal2(21) = 702;
 lit_to_plot = sortrows(lit_to_plot,'lit_removal1','ascend'); % plot by pollution combination 
 lit_to_plot = sortrows(lit_to_plot,'lit_removal2','ascend'); % plot by pollution combination 
-lit_to_plot = table2cell(lit_to_plot); 
+lit_removal = table2cell(lit_to_plot); 
+
 
 %% calculate solids, liquids, and gas for each trace element 
 gas = zeros(size(lit_removal,1),4);

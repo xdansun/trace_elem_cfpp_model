@@ -18,7 +18,7 @@ function coal_gen_boiler_wapcd_out = identify_apcd_base10(coal_gen_boiler_wapcd)
 base10_table = cell(1,2); % 
 base10_table(1,:) = {'csESP',100}; 
 base10_table(2,:) = {'hsESP',200}; 
-base10_table(3,:) = {'FF',300};
+base10_table(3,:) = {'FF',400};
 base10_table(4,:) = {'SCR',10}; 
 base10_table(5,:) = {'wFGD',1000}; 
 base10_table(6,:) = {'dFGD',2000};
@@ -56,6 +56,9 @@ for j = 1:size(coal_gen_boiler_wapcd,1) % for each generator
     % The APCD combinations we expect to see are 
     % ESP, ACI+ESP, ESP+wFGD, ACI+ESP+wFGD, SCR+ESP+wFGD, ACI+SCR+ESP+wFGD
     % note that we have a CS-ESP and a HS-ESP split.  
+    if sum(strcmp(apcd_list, 'csESP') + strcmp(apcd_list, 'hsESP')) > 1
+        j
+    end 
     for k = 1:size(apcd_list,1)
         apcd = apcd_list{k,1}; 
         match = strcmp(apcd,base10_table(:,1));

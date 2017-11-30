@@ -5,7 +5,7 @@ function [output_cell, study_name, apcd_combo, waste_stream_fractions] = rubin_t
 % DOI: es990018d
 % See table S2 for the removal efficiency for the case study plant 
 
-study_name = 'Rubin et al. (1999)'; 
+study_name = 'Rubin (1999)'; 
 apcd_combo = 100; 
 
 %% boiler

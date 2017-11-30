@@ -7,7 +7,7 @@ function [output_cell, study_name, apcd_combo] = chu_porcella_1995_ff
 
 %% define study name and air pollution control combination
 study_name = 'Chu and Porcella FF (1995)'; 
-apcd_combo = 300; 
+apcd_combo = 400; 
 
 %% boiler 
 % Data in Table 3. Add economizer and bottom ash together 

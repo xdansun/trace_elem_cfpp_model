@@ -6,7 +6,7 @@ function [output_cell, study_name, apcd_combo, waste_stream_fractions] = ...
 %  
 %% define study name and air pollution control combination
 study_name = 'Pavlish et al. (2003)'; 
-apcd_combo = 1300; %hsesp
+apcd_combo = 1400; % FF with wFGD
 
 %% boiler 
 % order of elements is Hg, Se, As, and Cl. 

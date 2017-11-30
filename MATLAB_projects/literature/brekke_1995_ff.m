@@ -9,7 +9,7 @@ function [output_cell, study_name, apcd_combo] = brekke_1995_ff
 
 %% define study name and air pollution control combination
 study_name = 'Brekke et al. ff (1995)'; 
-apcd_combo = 300; 
+apcd_combo = 400; 
 
 %% boiler
 % bottom ash splits

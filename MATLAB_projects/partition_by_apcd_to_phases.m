@@ -7,9 +7,9 @@ function [lit_phases_hg, lit_phases_se, lit_phases_as, lit_phases_cl] = ...
 % worth adding 
 
 %% plot by air pollution control combination 
-% 0 is irrelevant, 100 is csESP, 101 is csESP+ACI, 200 is hsESP, 300 is FF,
-% 301 is FF + ACI , 1100 is wFGD + csESP, 1110 is SCR+csESP+wFGD, 1200 is
-% wFGD + hsESP, 1210 is wFGD+hsESP+SCR, 1300 FF+wFGD, 1301 ACI+FF+wFGD, etc
+% 0 is irrelevant, 100 is csESP, 101 is csESP+ACI, 200 is hsESP, 400 is FF,
+% 401 is FF + ACI , 1100 is wFGD + csESP, 1110 is SCR+csESP+wFGD, 1200 is
+% wFGD + hsESP, 1210 is wFGD+hsESP+SCR, 1400 FF+wFGD, 1401 ACI+FF+wFGD, etc
 % it may be worth only showing control combinations we have data for 
 
 %% calculate solids, liquids, and gas for each trace element 
