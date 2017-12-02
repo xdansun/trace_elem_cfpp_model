@@ -395,8 +395,24 @@ num_cap_gen_cf(i,4) = num_cap_gen_cf(i,3)/(num_cap_gen_cf(i,2)*8760);
 subrgn_coal_summary = horzcat(subrgn_list, table2cell(array2table(num_cap_gen_cf))); 
 
 %% SI - temporal variability 
-% bootstrap concentrations of trace elements in the coal blend of each
-% power plant for each month in 2015
+% for each plant, figure out which county has the largest coal purchases
+% [coal_gen_boilers, coal_purchases_2015] = ...
+%     compile_coal_purchases(coal_gen_boilers, ann_coal_gen, 2015); 
+
+% count number of plants that purchase from a single county
+flag = zeros(size(cq_hg_2015,1),1);
+for i = 1:size(cq_hg_2015,1)
+    if size(cq_hg_2015{i,2},1) == 1
+        flag(i) = 1; 
+    end 
+end 
+fprintf('Number of plants that purchase coal from a single county: %1.0f\n', sum(flag))
+% estimate generation from plants that purchase coal from a single county 
+test = cell2table(cq_hg_2015(flag == 1,1));
+test.Properties.VariableNames = {'Plant_Code'};
+test = innerjoin(test, plant_gen); 
+fprintf('Generation from plants that purchase coal from a single county: %1.0f\n', sum(test.Gen_MWh)); 
+%% 
 % takes about 2 minutes to run 
 cq_month_hg = unique(coal_gen_boilers.Plant_Code); 
 cq_month_se = unique(coal_gen_boilers.Plant_Code); 
@@ -427,21 +443,72 @@ for i = 1:12
     
 end 
 %% plot result 
-plot_coal_temporal_variation(cq_month_hg, cq_month_se, cq_month_as, cq_month_cl, plant_gen);
 
-% count number of plants that purchase from a single county
-flag = zeros(size(cq_hg_2015,1),1);
-for i = 1:size(cq_hg_2015,1)
-    if size(cq_hg_2015{i,2},1) == 1
-        flag(i) = 1; 
+figure('Color','w','Units','inches','Position',[0.25 0.25 8 8]) % was 1.25
+axes('Position',[0.2 0.15 0.75 0.75]) % x pos, y pos, x width, y height
+for k = 1:4 
+    subplot(2,2,k);
+    hold on; 
+    if k == 1
+        set(gca, 'Position', [0.15 0.6 0.3 0.33])
+        cq_month = array2table(cq_month_hg);
+    elseif k == 2
+        set(gca, 'Position', [0.6 0.6 0.3 0.33])
+        cq_month = array2table(cq_month_se);
+    elseif k == 3
+        set(gca, 'Position', [0.15 0.15 0.3 0.33])
+        cq_month = array2table(cq_month_as);
+    elseif k == 4
+        set(gca, 'Position', [0.6 0.15 0.3 0.33])
+        cq_month = array2table(cq_month_cl);
     end 
+    cq_month.Properties.VariableNames(1) = {'Plant_Code'};
+    cq_month = innerjoin(cq_month, plant_gen); % merge generation information 
+    cq_month = sortrows(cq_month,'Gen_MWh','descend');
+%     max_trace = max(trace_coal_input.median);
+%     display([k, max_trace]);
+
+%     if k < 4
+        plot(table2array(cq_month([3 9:10 99:100],2:13))','*--')
+%     else
+%         plot(table2array(cq_month(,2:13))','*--')
+%     end 
+
+    set(gca,'FontName','Arial','FontSize',13)
+    a=gca;
+   
+    if k == 1
+        ylabel({'Median Hg concentration', 'in coal blend (ppm)'}); 
+    elseif k == 2
+        ylabel({'Median Se concentration', 'in coal blend (ppm)'}); 
+    elseif k == 3
+        ylabel({'Median As concentration', 'in coal blend (ppm)'}); 
+    elseif k == 4
+        ylabel({'Median Cl concentration', 'in coal blend (ppm)'}); 
+    end 
+    xlabel('Months in 2015'); 
+    if k == 1
+        legend(num2str(cq_month.Plant_Code([3 9:10 99:100])),...
+            'Location','SouthEast'); legend boxoff; 
+    end 
+    grid off;
+    title('');
+
+    set(a,'box','off','color','none')
+    b=axes('Position',get(a,'Position'),'box','on','xtick',[],'ytick',[]);
+    axes(a)
+    linkaxes([a b])
+    scale = [0.2 5 20 1200]; 
+    axis([0 13 0 scale(k)]);
+    
 end 
-fprintf('Number of plants that purchase coal from a single county: %1.0f\n', sum(flag))
-% estimate generation from plants that purchase coal from a single county 
-test = cell2table(cq_hg_2015(flag == 1,1));
-test.Properties.VariableNames = {'Plant_Code'};
-test = innerjoin(test, plant_gen); 
-fprintf('Generation from plants that purchase coal from a single county: %1.0f\n', sum(test.Gen_MWh)); 
+
+print('../Figures/Fig_emf_boiler_cdf','-dpdf','-r300');
+
+%%
+disp('ignore total percent generation ... outputs in this section'); 
+[coal_gen_boilers_2010, coal_purchases_2010] = ...
+    compile_coal_purchases(coal_gen_boilers, ann_coal_gen, 2010); % import coal_purchases in 2010
 
 %% SI - variability of coal samples in COALQUAL
 % extract coalqual data 
@@ -468,10 +535,6 @@ plot_coalqual_samples(coalqual_samples, 'Cl');
 
 % estimate trace element concentration in coal blends using 2010 coal
 % purchase data
-% read in 2010 coal purchases
-disp('ignore total percent generation ... outputs in this section'); 
-[coal_gen_boilers_2010, coal_purchases_2010] = ...
-    compile_coal_purchases(coal_gen_boilers, ann_coal_gen, 2010); % import coal_purchases in 2010
 % create 2010 distribution of trace element concentrations in coal at the plant level 
 [cq_hg_2010, cq_se_2010, cq_as_2010, cq_cl_2010] = coalqual_dist(coal_gen_boiler_apcd, coal_purchases_2010, haps_sampling_months);
 boot_cq_TE_2010 = boot_coal_blend_conc(coal_gen_boiler_apcd, cq_hg_2010, cq_se_2010, cq_as_2010, cq_cl_2010, trials);
