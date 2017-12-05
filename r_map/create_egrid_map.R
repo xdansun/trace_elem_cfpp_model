@@ -1,4 +1,4 @@
-setwd("U:/r_map") # set working directory
+setwd("U:/trace_elem_mass_bal_repo/r_map") # set working directory
 
 #install.packages("rgdal")
 library(rgdal)

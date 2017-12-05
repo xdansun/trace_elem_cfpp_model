@@ -64,6 +64,7 @@ plt_blr_TE_emis = horzcat(plt_blr_coal_remov(:,{'Plant_Code','Plant_Boiler','Net
 plt_blr_TE_emis.Properties.VariableNames = {'Plant_Code','Plant_Boiler','Gen_MWh','emis_mg','emf_mg_MWh'}; 
 plt_blr_TE_emis = plt_blr_TE_emis(blrs_to_remov == 0,:); % remove boilers with nan coal inputs 
 %% aggregate data to the plant level 
+% code works, double checked 08/31/2017
 plt_TE_emis = unique(plt_blr_TE_emis(:,{'Plant_Code'})); 
 % 
 gen = zeros(size(plt_TE_emis,1),1); % set array for generation 
@@ -106,8 +107,7 @@ med_emf = zeros(size(plt_TE_emis,1),3);
 for i = 1:size(plt_TE_emis,1)
     med_emf(i,:) = median(plt_TE_emis.emf_mg_MWh{i,1},'omitnan');
 end 
-med_emf(isnan(med_emf)) = 0; % turn this off if analyze nonzero numbers only 
-med_emf(med_emf(:,1) == 0,:) = []; % remove plant with zero fuel consumption
+med_emf(
 fprintf('%s emf percentile (solid, liquid, gas) for 0th, 5th, 25th, 50th, 7th, 95th, and 100th', poll); 
 prctile(med_emf,[0 5 25 50 75 95 100],1)/10^3
 end

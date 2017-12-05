@@ -24,7 +24,7 @@ linkaxes([a b])
 legend('Bootstrapped','CEMS'); 
 legend boxoff;
 
-print('../Figures/Fig6_cems_hg_comp_cdf','-dpdf','-r300') % save figure (optional)
+print('../Figures/Fig6_cems_hg_comp_histo','-dpdf','-r300') % save figure (optional)
 
 %% create CDF of differences in medians 
 med_dif = comp_boot_cems_hg.med_hg_emf_stack - comp_boot_cems_hg.cems_hg_emf_mg_MWh; % estimated - actual 

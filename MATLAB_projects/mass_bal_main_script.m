@@ -130,20 +130,8 @@ boot_part_se = boot_partitioning(coal_gen_boiler_apcd, lit_phases_se, trials, 'S
 boot_part_as = boot_partitioning(coal_gen_boiler_apcd, lit_phases_as, trials, 'As'); 
 boot_part_cl = boot_partitioning(coal_gen_boiler_apcd, lit_phases_cl, trials, 'Cl');
 
-%% Produce Figure S9: median trace element partitioning for each boiler 
-plot_med_partition_cdf(boot_part_hg, boot_part_se, boot_part_as, boot_part_cl);
-
-% summary statistics - calculate median partitioning of each boiler 
-boot_part_TE = boot_part_cl; % for other trace element, use boot_part_hg, boot_part_se, boot_part_as, or boot_part_cl;
-meds = zeros(size(boot_part_TE,1),3); 
-for i = 1:size(boot_part_TE)
-    meds(i,:) = median(boot_part_TE{i,3}); 
-end 
-disp('minimum and maximum median partitioning of boilers in the fleet for trace element'); 
-min(meds)
-max(meds)
-
-% error('success'); 
+% see SI Section of this script to plot partitioning of trace elements to
+% the solid, liquid, and gaseous waste streams at each coal boiler (~ line 360) 
 
 %% Produce Figure 4 - median waste stream factors of trace elements for CFPPs included in analysis 
 % prepare data for emissions across the US 
@@ -154,28 +142,12 @@ max(meds)
 [boot_blr_emis_as, boot_plt_emis_as] = boot_coal_cq_part_lit(coal_gen_boiler_apcd, boot_cq_TE, boot_part_as, ann_coal_gen, 'As');
 [boot_blr_emis_cl, boot_plt_emis_cl] = boot_coal_cq_part_lit(coal_gen_boiler_apcd, boot_cq_TE, boot_part_cl, ann_coal_gen, 'Cl');
 
+%%
 close all; 
-% Plot Figure S6?? - median waste stream factors of trace elements for coal boilers included in analysis 
+% Plot Figure S7 - median waste stream factors of trace elements for coal boilers included in analysis 
 plot_med_emf_cdf_blr(boot_blr_emis_hg, boot_blr_emis_se, boot_blr_emis_as, boot_blr_emis_cl)
 % Plot Figure 4 - median waste stream factors of trace elements for CFPPs included in analysis 
 plot_med_emf_cdf_plt(boot_plt_emis_hg, boot_plt_emis_se, boot_plt_emis_as, boot_plt_emis_cl); % create separate function for plant level modeling, some subtleties 
-
-%% Produce Figure 4 - median waste stream factors of trace elements for CFPPs by eGRID subregions
-boot_plt_hg_egrid = innerjoin(boot_plt_emis_hg, egrid_subrgns); 
-boot_plt_se_egrid = innerjoin(boot_plt_emis_se, egrid_subrgns); 
-boot_plt_as_egrid = innerjoin(boot_plt_emis_as, egrid_subrgns); 
-boot_plt_cl_egrid = innerjoin(boot_plt_emis_cl, egrid_subrgns); 
-
-% close all; 
-for i = 1:size(subrgn_list,1)
-    subrgn_hg = boot_plt_hg_egrid(strcmp(boot_plt_hg_egrid.egrid_subrgn, subrgn_list{i,1}),:);
-    subrgn_se = boot_plt_se_egrid(strcmp(boot_plt_se_egrid.egrid_subrgn, subrgn_list{i,1}),:);
-    subrgn_as = boot_plt_as_egrid(strcmp(boot_plt_as_egrid.egrid_subrgn, subrgn_list{i,1}),:);
-    subrgn_cl = boot_plt_cl_egrid(strcmp(boot_plt_cl_egrid.egrid_subrgn, subrgn_list{i,1}),:);
-%     plot_med_emf_cdf_plt_subrgn(subrgn_hg, subrgn_se, subrgn_as, subrgn_cl, subrgn_list{i,1}) % create separate function for plant level modeling, some subtleties
-end 
-
-clear subrgn_hg subrgn_se subrgn_as subrgn_cl;  
 
 %% Prepare data for Figure 5 
 % input coordinate data from EIA 
@@ -225,7 +197,17 @@ median(comp_boot_cems_hg.med_hg_emf_stack - comp_boot_cems_hg.cems_hg_emf_mg_MWh
 comp_boot_cems_hg(:,end+1) = array2table(comp_boot_cems_hg.med_hg_emf_stack - comp_boot_cems_hg.cems_hg_emf_mg_MWh); % estimated - actual 
 comp_boot_cems_hg.Properties.VariableNames{end} = 'med_dif';
 
-overest_hg = comp_boot_cems_hg(comp_boot_cems_hg.med_dif > 13, :); 
+%%
+comp_boot_cems_hg = innerjoin(comp_boot_cems_hg, boot_cq_TE_tbl(:,1:2)); 
+foo = zeros(size(comp_boot_cems_hg,1),1); 
+for i = 1:size(foo,1)
+    foo(i,1) = median(comp_boot_cems_hg.hg_ppm{i,1});
+end 
+comp_boot_cems_hg(:,end+1) = array2table(foo); 
+%%
+comp_boot_cems_hg.Properties.VariableNames(end) = {'hg_ppm_med'}; 
+
+overest_hg = comp_boot_cems_hg(comp_boot_cems_hg.med_dif > 18, :); 
 overest_hg = innerjoin(overest_hg, coal_gen_boiler_apcd(:,[4 8:end]));
 % From playing around with the data, I find that the largest emission
 % differences correspond to plants with the largest estimates of hg waste stream to air 
@@ -330,7 +312,58 @@ end
 % ans =
 %    25.4587
 %% End of main paper - Begin SI 
-%% SI Section 3 - calculate generation associated with air pollution controls  
+%% SI Section 1 - Calculate coal generation at each eGRID subregion 
+coal_blrs_egrid = innerjoin(coal_gen_boilers, egrid_subrgns); % merge coal boilers (note, this includes all coal boilers) with egrid subregions
+subrgn_list = unique(egrid_subrgns.egrid_subrgn);  % compile list of subrgns 
+subrgn_list(1,:) = []; % remove first row which is blank 
+
+% for each subrgn, count the number of coal plants, add up coal capacity,
+% add up coal generation, and calculate coal capacity factor 
+num_cap_gen_cf = zeros(size(subrgn_list,1),4); 
+for i = 1:size(subrgn_list,1)
+    index = strcmp(coal_blrs_egrid.egrid_subrgn,subrgn_list{i,1});
+    num_cap_gen_cf(i,1) = size(unique(coal_blrs_egrid.Plant_Code(index)),1); 
+    num_cap_gen_cf(i,2) = sum(coal_blrs_egrid.Nameplate_Capacity_MW(index)); 
+    num_cap_gen_cf(i,3) = sum(coal_blrs_egrid.Net_Generation_Year_To_Date(index)); 
+    num_cap_gen_cf(i,4) = num_cap_gen_cf(i,3)/(num_cap_gen_cf(i,2)*8760); 
+end 
+
+% subrgn_coal_summary is used to create Table S5 in SI Section ??
+num_cap_gen_cf(i,4) = num_cap_gen_cf(i,3)/(num_cap_gen_cf(i,2)*8760); 
+subrgn_coal_summary = horzcat(subrgn_list, table2cell(array2table(num_cap_gen_cf))); 
+
+%% SI Section 4 - calculate fraction of coal purchases that are prepared 
+% see directory SI_coal_prep, load 'coal_prep_data.mat', run line 105 in
+% script SI_coal_prep_eia
+
+%% SI Section 5 - variability of coal samples in COALQUAL
+% extract coalqual data 
+[num,txt,raw] = xlsread('../data/coalqual/coalqual_upper_wfips.xlsx','data'); % pull coalqual upper level with fips data  
+
+coalqual_samples = cell2table(raw(2:end,:)); % name the coalqual data as strat_table 
+coalqual_samples.Properties.VariableNames = raw(1,:); % set the table headers 
+%%
+% plot figure 
+close all; 
+plot_coalqual_samples(coalqual_samples, 'Hg'); 
+plot_coalqual_samples(coalqual_samples, 'Se'); 
+plot_coalqual_samples(coalqual_samples, 'As'); 
+plot_coalqual_samples(coalqual_samples, 'Cl'); 
+
+%% SI Section 7: median trace element partitioning for each boiler 
+plot_med_partition_cdf(boot_part_hg, boot_part_se, boot_part_as, boot_part_cl);
+
+%% summary statistics - calculate median partitioning of each boiler 
+boot_part_TE = boot_part_hg; % for other trace element, use boot_part_hg, boot_part_se, boot_part_as, or boot_part_cl;
+meds = zeros(size(boot_part_TE,1),3); 
+for i = 1:size(boot_part_TE)
+    meds(i,:) = median(boot_part_TE{i,3}); 
+end 
+disp('minimum and maximum median partitioning to solid, liq, and air of boilers in the fleet'); 
+min(meds)
+max(meds)
+
+%% SI Section 8 - calculate generation associated with air pollution controls  
 % determine generation across the fleet for single apcd type 
 % gen_pm_ctrls, gen_so2_ctrls, gen_nox_ctrls, and gen_hg_ctrls are used to
 % make Table S1
@@ -359,7 +392,7 @@ for i = 1:size(gen_by_apcd_combo,1)
         coal_gen_boiler_apcd.apcds == gen_by_apcd_combo(i,1)))/1e6;
 end 
 
-%% summary statistics - calculate generation associated with hsESP and ACI 
+% summary statistics - calculate generation associated with hsESP and ACI 
 apcds = coal_gen_boiler_apcd.apcds; 
 pm = floor(rem(apcds/100,10)); % PM controls installed at boilers
 display('generation treated by hsESP / generation treated by csESP'); 
@@ -374,27 +407,7 @@ sum(coal_gen_boiler_apcd.Net_Generation_Year_To_Date(aci == 0))/ann_coal_gen
 % is excluded from analysis see SI Section XX??
 
 
-%% SI Section 7 - Calculate coal generation at each eGRID subregion 
-coal_blrs_egrid = innerjoin(coal_gen_boilers, egrid_subrgns); % merge coal boilers (note, this includes all coal boilers) with egrid subregions
-subrgn_list = unique(egrid_subrgns.egrid_subrgn);  % compile list of subrgns 
-subrgn_list(1,:) = []; % remove first row which is blank 
-
-% for each subrgn, count the number of coal plants, add up coal capacity,
-% add up coal generation, and calculate coal capacity factor 
-num_cap_gen_cf = zeros(size(subrgn_list,1),4); 
-for i = 1:size(subrgn_list,1)
-    index = strcmp(coal_blrs_egrid.egrid_subrgn,subrgn_list{i,1});
-    num_cap_gen_cf(i,1) = size(unique(coal_blrs_egrid.Plant_Code(index)),1); 
-    num_cap_gen_cf(i,2) = sum(coal_blrs_egrid.Nameplate_Capacity_MW(index)); 
-    num_cap_gen_cf(i,3) = sum(coal_blrs_egrid.Net_Generation_Year_To_Date(index)); 
-    num_cap_gen_cf(i,4) = num_cap_gen_cf(i,3)/(num_cap_gen_cf(i,2)*8760); 
-end 
-
-% subrgn_coal_summary is used to create Table S5 in SI Section ??
-num_cap_gen_cf(i,4) = num_cap_gen_cf(i,3)/(num_cap_gen_cf(i,2)*8760); 
-subrgn_coal_summary = horzcat(subrgn_list, table2cell(array2table(num_cap_gen_cf))); 
-
-%% SI - temporal variability 
+%% SI Section 9 - temporal variability 
 % bootstrap concentrations of trace elements in the coal blend of each
 % power plant for each month in 2015
 % takes about 2 minutes to run 
@@ -427,6 +440,7 @@ for i = 1:12
     
 end 
 %% plot result 
+close all;
 plot_coal_temporal_variation(cq_month_hg, cq_month_se, cq_month_as, cq_month_cl, plant_gen);
 
 % count number of plants that purchase from a single county
@@ -443,26 +457,9 @@ test.Properties.VariableNames = {'Plant_Code'};
 test = innerjoin(test, plant_gen); 
 fprintf('Generation from plants that purchase coal from a single county: %1.0f\n', sum(test.Gen_MWh)); 
 
-%% SI - variability of coal samples in COALQUAL
-% extract coalqual data 
-[num,txt,raw] = xlsread('../data/coalqual/coalqual_upper_wfips.xlsx','data'); % pull coalqual upper level with fips data  
-
-coalqual_samples = cell2table(raw(2:end,:)); % name the coalqual data as strat_table 
-coalqual_samples.Properties.VariableNames = raw(1,:); % set the table headers 
-
-% plot figure 
-close all; 
-plot_coalqual_samples(coalqual_samples, 'Hg'); 
-plot_coalqual_samples(coalqual_samples, 'Se'); 
-plot_coalqual_samples(coalqual_samples, 'As'); 
-plot_coalqual_samples(coalqual_samples, 'Cl'); 
 %%
-%% SI Section 3 - calculate fraction of coal purchases that are prepared 
-% see directory SI_coal_prep, load 'coal_prep_data.mat', run line 105 in
-% script SI_coal_prep_eia
 
-
-%% SI Section ?? - Compare trace element concentration from COALQUAL vs 
+%% SI Section 12 - Compare trace element concentration from COALQUAL vs 
 % MATS ICR (refered to as the hazardous air pollutants (HAPS) dataset) 
 [plant_trace_haps, haps_plant_data, haps_sampling_months] = read_in_haps_coal_data; % reads in input data
 
@@ -497,7 +494,7 @@ for k = 1:4
     end 
 end 
 
-% Plot SI Figure ?? - Compare trace element concentrations between COALQUAL (CQ) and HAPS 
+% Plot SI Figure 12 - Compare trace element concentrations between COALQUAL (CQ) and HAPS 
 close all; 
 plot_mats_cq_coal_comp(comp_cq_haps, med_ppm_dif);
 
@@ -527,7 +524,7 @@ fprintf('median CQ conc Hg, Se, As, and Cl: %1.3f, %2.3f, %2.3f, %5.0f\n', media
 fprintf('median dif conc Hg, Se, As, and Cl: %1.3f, %2.3f, %2.3f, %5.0f\n', median(med_ppm_dif,'omitnan')); 
 fprintf('median percent errors Hg, Se, As, and Cl: %1.3f, %2.3f, %2.3f, %5.0f\n', median(med_ppm_dif./med_ppm_haps*100,'omitnan')); 
 
-%% SI Section 12 - compare partitioning to solid + liquid from MATS ICR against results from literature
+%% SI Section 13 - compare partitioning to solid + liquid from MATS ICR against results from literature
 % input coal and emissions data from the MATS ICR dataset
 partition_haps_data = partition_solid_liq_haps(haps_plant_data); 
 
@@ -548,6 +545,26 @@ foo = unique(vertcat(comp_lit_mats_hg(:,{'Plant_Boiler'}), comp_lit_mats_se(:,{'
 foo = innerjoin(foo, coal_gen_boiler_apcd(:,{'Plant_Boiler','Net_Generation_Year_To_Date'})); 
 disp('fraction of coal generation from the MATS ICR - literature comparison dataset'); 
 sum(foo.Net_Generation_Year_To_Date)/ann_coal_gen
+
+%% End SI 
+
+%% Create median waste stream factors of trace elements for CFPPs by eGRID subregions
+boot_plt_hg_egrid = innerjoin(boot_plt_emis_hg, egrid_subrgns); 
+boot_plt_se_egrid = innerjoin(boot_plt_emis_se, egrid_subrgns); 
+boot_plt_as_egrid = innerjoin(boot_plt_emis_as, egrid_subrgns); 
+boot_plt_cl_egrid = innerjoin(boot_plt_emis_cl, egrid_subrgns); 
+
+% close all; 
+for i = 1:size(subrgn_list,1)
+    subrgn_hg = boot_plt_hg_egrid(strcmp(boot_plt_hg_egrid.egrid_subrgn, subrgn_list{i,1}),:);
+    subrgn_se = boot_plt_se_egrid(strcmp(boot_plt_se_egrid.egrid_subrgn, subrgn_list{i,1}),:);
+    subrgn_as = boot_plt_as_egrid(strcmp(boot_plt_as_egrid.egrid_subrgn, subrgn_list{i,1}),:);
+    subrgn_cl = boot_plt_cl_egrid(strcmp(boot_plt_cl_egrid.egrid_subrgn, subrgn_list{i,1}),:);
+%     plot_med_emf_cdf_plt_subrgn(subrgn_hg, subrgn_se, subrgn_as, subrgn_cl, subrgn_list{i,1}) % create separate function for plant level modeling, some subtleties
+end 
+
+clear subrgn_hg subrgn_se subrgn_as subrgn_cl;  
+
 
 %% End of SI - Miscellaneous code follows underneath
 error('end of script'); 

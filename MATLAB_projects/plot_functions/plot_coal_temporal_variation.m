@@ -23,11 +23,14 @@ for k = 1:4
     cq_month = innerjoin(cq_month, plant_gen); % merge generation information 
     cq_month = sortrows(cq_month,'Gen_MWh','descend');
     plants_to_plot = [3 9:10 99:100];
-    plot(table2array(cq_month(plants_to_plot,2:13))','*--') % the plants are fairly arbitrarily chosen
+    plot(table2array(cq_month(plants_to_plot,2:13))',...
+        '*--','LineWidth',1.5,'MarkerSize',8) % the plants are fairly arbitrarily chosen
 
     set(gca,'FontName','Arial','FontSize',13)
     a=gca;
-   
+    a.XTick = [1 4 7 10];
+    a.XTickLabel = {'Jan','Apr','Jul','Oct'};
+    
     if k == 1
         ylabel({'Median Hg concentration', 'in coal blend (ppm)'}); 
     elseif k == 2
@@ -37,10 +40,10 @@ for k = 1:4
     elseif k == 4
         ylabel({'Median Cl concentration', 'in coal blend (ppm)'}); 
     end 
-    xlabel('Months in 2015'); 
+    xlabel('2015'); 
     if k == 1
         legend(num2str(cq_month.Plant_Code(plants_to_plot)),...
-            'Location','SouthEast'); legend boxoff; 
+            'Location','SouthWest'); legend boxoff; 
     end 
     grid off;
     title('');

@@ -37,7 +37,7 @@ plot_data(plot_data == 0) = nan; % set zeros to nan to avoid plotting issues
 
 % plot figure 
 figure('Color','w','Units','inches','Position',[1.25 1.25 4 4]) % was 1.25
-axes('Position',[0.15 0.15 0.8 0.8]) % x pos, y pos, x width, y height
+axes('Position',[0.15 0.15 0.7 0.8]) % x pos, y pos, x width, y height
 
 boxplot(plot_data);
 hold on;
