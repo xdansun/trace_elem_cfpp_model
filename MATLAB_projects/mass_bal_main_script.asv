@@ -56,11 +56,11 @@ lit_partition_US = lit_partition_apcd_all(1:21,:); % select only domestic studie
 close all; 
 lit_phases_by_TE = plot_TE_partition_v2(lit_partition_US);
 
-%% Aside, for each air pollution control combination, calculate partitioning via linked based approach
+%% Aside, for each air pollution control combination, calculate partitioning via 
+% linked based approach
 [pm_removal, so2_removal] = linked_based_partition(lit_partition_US);
 
 %% plot median partitioning coefficients for each air pollution control combination 
-% for linked based approach and whole process based approach 
 % fix apc codes for a few entries
 lit_phases_by_TE(11:13,2) = {101, 201, 401}; 
 [part_by_apc_link, part_by_apc_whole] = ...
