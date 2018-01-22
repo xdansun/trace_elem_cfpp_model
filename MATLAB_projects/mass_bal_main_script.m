@@ -66,6 +66,7 @@ lit_phases_by_TE(11:13,2) = {101, 201, 401};
 [part_by_apc_link, part_by_apc_whole] = ...
     plot_link_vs_whole_partition(pm_removal, so2_removal, lit_phases_by_TE, fgd_ww_ratio);
 
+% error('success'); 
 %% Produce Figure 3 - estimate TE concentrations in coal blends by bootstrapping
 % For each coal purchase, find location of coal purchase
 % for each location, randomly draw one sample from all coal samples at that location in CQ 
@@ -129,20 +130,50 @@ end
 % two purchase from similar counties with high chlorine concentrations in
 % coal.
 
+%% START HERE %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% bootstrap trace element partitioning for each boiler 
 % convert partitioning by air pollution controls to phases 
 % the cells lit_phases_* are used to create Table S3??
-[lit_phases_hg, lit_phases_se, lit_phases_as, lit_phases_cl] = partition_by_apcd_to_phases(lit_partition_US);
+% [lit_phases_hg, lit_phases_se, lit_phases_as, lit_phases_cl] = partition_by_apcd_to_phases(lit_partition_US);
 
+% wFGD partitioning for the pavlish papers should be combined into a single
+% paper because they report from the same piece (not upstream pm controls
+% are independent) 
 % bootstrap trace element partitioning for each boiler 
-boot_part_hg = boot_partitioning(coal_gen_boiler_apcd, lit_phases_hg, trials, 'Hg'); 
-boot_part_se = boot_partitioning(coal_gen_boiler_apcd, lit_phases_se, trials, 'Se'); 
-boot_part_as = boot_partitioning(coal_gen_boiler_apcd, lit_phases_as, trials, 'As'); 
-boot_part_cl = boot_partitioning(coal_gen_boiler_apcd, lit_phases_cl, trials, 'Cl');
+boot_part_hg = boot_partitioning_link(coal_gen_boiler_apcd, pm_removal, so2_removal, fgd_ww_ratio, trials, 'Hg'); 
+boot_part_se = boot_partitioning_link(coal_gen_boiler_apcd, pm_removal, so2_removal, fgd_ww_ratio, trials, 'Se'); 
+boot_part_as = boot_partitioning_link(coal_gen_boiler_apcd, pm_removal, so2_removal, fgd_ww_ratio, trials, 'As'); 
+boot_part_cl = boot_partitioning_link(coal_gen_boiler_apcd, pm_removal, so2_removal, fgd_ww_ratio, trials, 'Cl');
+
+% incorporate SDA + FF removal in Kilgroe et al. (2002)??
+% Also, in Aunela-Tapola, there is a dFGD removal, which is significant.
+% We can implement both? dFGD has a removal stream and doesn't 
 
 % see SI Section of this script to plot partitioning of trace elements to
 % the solid, liquid, and gaseous waste streams at each coal boiler (~ line 360) 
+%% more testing 
+[lit_phases_hg, lit_phases_se, lit_phases_as, lit_phases_cl] = partition_by_apcd_to_phases(lit_partition_US);
+boot_part_hg_sys = boot_partitioning(coal_gen_boiler_apcd, lit_phases_hg, trials, 'Hg');
 
+%% test partitioning
+test = zeros(size(boot_part_hg,1),3); 
+for i = 1:size(test,1)
+    test(i,1) = median(boot_part_hg{i,3}(:,1)); 
+    test(i,2) = median(boot_part_hg{i,3}(:,2)); 
+    test(i,3) = median(boot_part_hg{i,3}(:,3)); 
+end 
+test = cell2table(horzcat(boot_part_hg, table2cell(array2table(test)))); 
+test.Properties.VariableNames = {'Plant_Code','Plant_Boiler','partition','med_solid','med_liq','med_gas'}; 
+
+
+test2 = zeros(size(boot_part_hg_sys,1),3); 
+for i = 1:size(test2,1)
+    test2(i,1) = median(boot_part_hg_sys{i,3}(:,1)); 
+    test2(i,2) = median(boot_part_hg_sys{i,3}(:,2)); 
+    test2(i,3) = median(boot_part_hg_sys{i,3}(:,3)); 
+end 
+test2 = cell2table(horzcat(boot_part_hg_sys, table2cell(array2table(test2)))); 
+test2.Properties.VariableNames = {'Plant_Code','Plant_Boiler','partition','med_solid','med_liq','med_gas'}; 
 %% Produce Figure 4 - median waste stream factors of trace elements for CFPPs included in analysis 
 % prepare data for emissions across the US 
 % calculate total annual emissions from all plants 
@@ -173,7 +204,7 @@ clear raw txt num column_numbers row_start;
 % output data into excel files. Use R to create maps. See r_map directory
 append_lat_long(boot_plt_emis_hg, plant_coord,'Hg'); 
 append_lat_long(boot_plt_emis_se, plant_coord,'Se'); 
-append_lat_long(boot_plt_emis_as, plant_coord,'As'); 
+test = append_lat_long(boot_plt_emis_as, plant_coord,'As'); 
 append_lat_long(boot_plt_emis_cl, plant_coord,'Cl'); 
 
 %% Produce Figure 6 - compare bootstrapped mercury estimates to air against CEMS 
@@ -207,7 +238,7 @@ median(comp_boot_cems_hg.med_hg_emf_stack - comp_boot_cems_hg.cems_hg_emf_mg_MWh
 comp_boot_cems_hg(:,end+1) = array2table(comp_boot_cems_hg.med_hg_emf_stack - comp_boot_cems_hg.cems_hg_emf_mg_MWh); % estimated - actual 
 comp_boot_cems_hg.Properties.VariableNames{end} = 'med_dif';
 
-%%
+%% append trace element in coal conc 
 comp_boot_cems_hg = innerjoin(comp_boot_cems_hg, boot_cq_TE_tbl(:,1:2)); 
 foo = zeros(size(comp_boot_cems_hg,1),1); 
 for i = 1:size(foo,1)
@@ -229,21 +260,22 @@ overest_hg = sortrows(overest_hg,'med_hg_emf_stack','ascend');
 % concentrations in coal 
 
 % see if these plants have lower removals than expected 
-overest_hg = innerjoin(overest_hg, conc_stats_hg(:,{'Plant_Code','median'}));
-med_remov = zeros(size(boot_part_hg,1),1); 
-for i = 1:size(boot_part_hg,1)
-    med_remov(i) = median(boot_part_hg{i,3}(:,3));
-end 
-med_remov = horzcat(cell2table(boot_part_hg(:,2)), array2table(med_remov)); 
-med_remov.Properties.VariableNames = {'Plant_Boiler','med_remov'}; 
-overest_hg = innerjoin(overest_hg, med_remov);
-% needed removal 
-foo = (overest_hg.median.*overest_hg.Fuel_Consumed*907./overest_hg.gen_mwh - ...
-    overest_hg.cems_hg_emf_mg_MWh)./(overest_hg.median.*overest_hg.Fuel_Consumed*907./overest_hg.gen_mwh);
-overest_hg(:,end+1) = array2table(foo); 
+% overest_hg = innerjoin(overest_hg, conc_stats_hg(:,{'Plant_Code','median'}));
+% med_remov = zeros(size(boot_part_hg,1),1); 
+% for i = 1:size(boot_part_hg,1)
+%     med_remov(i) = median(boot_part_hg{i,3}(:,3));
+% end 
+% med_remov = horzcat(cell2table(boot_part_hg(:,2)), array2table(med_remov)); 
+% med_remov.Properties.VariableNames = {'Plant_Boiler','med_remov'}; 
+% overest_hg = innerjoin(overest_hg, med_remov);
+% % needed removal 
+% foo = (overest_hg.median.*overest_hg.Fuel_Consumed*907./overest_hg.gen_mwh - ...
+%     overest_hg.cems_hg_emf_mg_MWh)./(overest_hg.median.*overest_hg.Fuel_Consumed*907./overest_hg.gen_mwh);
+% overest_hg(:,end+1) = array2table(foo); 
 
 
 disp('end of main paper'); 
+% error('success'); 
 %% Aside, NERC region analysis
 [num,txt,raw] = xlsread('../data/EIA_923/EIA923_Schedules_2_3_4_5_M_12_2015_Final.xlsx',...
     'Page 1 Generation and Fuel Data');
@@ -286,7 +318,7 @@ array = zeros(size(nerc_list,1),5);
 for i = 10 %1:size(nerc_list,1)
     idx = strcmp(coal_nerc_table.NERC_Region, nerc_list{i,1});
     nerc_plants = size(unique(coal_nerc_table.Plant_Code(idx)),1);
-    plants = innerjoin(boot_plt_emis_hg(:,{'Plant_Code'}), coal_nerc_table(idx,:))
+    plants = innerjoin(boot_plt_emis_hg(:,{'Plant_Code'}), coal_nerc_table(idx,:));
     array(i,1) = size(plants,1)/nerc_plants*100;
     plants = innerjoin(boot_plt_emis_se(:,{'Plant_Code'}), coal_nerc_table(idx,:)); 
     array(i,2) = size(plants,1)/nerc_plants*100;
@@ -401,6 +433,8 @@ for i = 1:size(gen_by_apcd_combo,1)
     gen_by_apcd_combo(i,2) = sum(coal_gen_boiler_apcd.Net_Generation_Year_To_Date(...
         coal_gen_boiler_apcd.apcds == gen_by_apcd_combo(i,1)))/1e6;
 end 
+gen_by_apcd_combo(:,3) = floor(rem(gen_by_apcd_combo(:,1)/100,10));
+gen_by_apcd_combo(:,4) = floor(rem(gen_by_apcd_combo(:,1)/1000,10));
 
 % summary statistics - calculate generation associated with hsESP and ACI 
 apcds = coal_gen_boiler_apcd.apcds; 

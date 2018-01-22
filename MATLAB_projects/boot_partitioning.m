@@ -1,4 +1,4 @@
-function boot_remov = boot_remov_lit(coal_gen_boiler_wapcd_code, lit_phases_TE, trials, poll)
+function boot_remov = boot_partitioning(coal_gen_boiler_wapcd_code, lit_phases_TE, trials, poll)
 %% DESCRIPTION NEEDED
 
 %% for each coal generator, create bootstrapped removal distribution for TE poll

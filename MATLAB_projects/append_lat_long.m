@@ -1,4 +1,4 @@
-function append_lat_long(plt_TE_emis, plant_coord, poll)
+function plt_TE_emis_lat_long = append_lat_long(plt_TE_emis, plant_coord, poll)
 %% DESCRIPTION NEEDED 
 
 %% determine median phase emis for each plant 
@@ -49,6 +49,11 @@ end
 emf_egrid(isnan(emf_egrid)) = 0; 
 emf_egrid = horzcat(cell2table(egrid_list), array2table(emf_egrid));
 emf_egrid.Properties.VariableNames = {'eGRID','solid_mg_mwh','liq_mg_mwh','gas_mg_mwh'}; 
+
+% set zero solid emissions to nan, implies no coal plants in eGRID subregion
+emf_egrid.liq_mg_mwh(emf_egrid.solid_mg_mwh == 0) = nan; 
+emf_egrid.gas_mg_mwh(emf_egrid.solid_mg_mwh == 0) = nan; 
+emf_egrid.solid_mg_mwh(emf_egrid.solid_mg_mwh == 0) = nan; 
 
 %% write excel outputs 
 writetable(plt_TE_emis_lat_long, strcat('../r_map/data_boot_cq_remov_',poll,'.xlsx')); 
