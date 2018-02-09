@@ -1,4 +1,4 @@
-function coal_gen_boiler_wapcd_out = identify_apcd_base10(coal_gen_boiler_wapcd) 
+function coal_gen_boiler_wapcd_out = identify_apcd_base10(coal_gen_boiler_apcd) 
 % this function pulls all of the apcds associated with the generator and
 % renames the combination into a numeric code for easy identification. This
 % is different thant he original, because this one employs base 10 
@@ -22,20 +22,21 @@ base10_table(3,:) = {'FF',400};
 base10_table(4,:) = {'SCR',10}; 
 base10_table(5,:) = {'wFGD',1000}; 
 base10_table(6,:) = {'dFGD',2000};
-base10_table(7,:) = {'ACI',1}; 
+base10_table(7,:) = {'DSI',4000}; 
+base10_table(8,:) = {'ACI',1}; 
 
 %%
 % create an array of apcd codes to mark the acpd combination for convenience 
-apcd_code = zeros(size(coal_gen_boiler_wapcd,1),1); 
+apcd_code = zeros(size(coal_gen_boiler_apcd,1),1); 
 % ESPs = [0 0 0]; % matrix made for counting the number of hs and cs ESPs
 % for testing 
-for j = 1:size(coal_gen_boiler_wapcd,1) % for each generator 
+for j = 1:size(coal_gen_boiler_apcd,1) % for each generator 
     apcd_list = {''}; % create an empty cell 
     % pull apcds for the different pollution controls (PM, SO2, NOx, and Hg) 
-    apcd_pm = coal_gen_boiler_wapcd{j,'PM'}{1,1};
-    apcd_so2 = coal_gen_boiler_wapcd{j,'SO2'}{1,1};
-    apcd_nox = coal_gen_boiler_wapcd{j,'NOx'}{1,1};
-    apcd_hg = coal_gen_boiler_wapcd{j,'Hg'}{1,1};
+    apcd_pm = coal_gen_boiler_apcd{j,'PM'}{1,1};
+    apcd_so2 = coal_gen_boiler_apcd{j,'SO2'}{1,1};
+    apcd_nox = coal_gen_boiler_apcd{j,'NOx'}{1,1};
+    apcd_hg = coal_gen_boiler_apcd{j,'Hg'}{1,1};
 
     if size(apcd_pm,1) > 0 % if there is a pm control 
         apcd_list = vertcat(apcd_list, apcd_pm{:,1}); % append all pm controls 
@@ -57,7 +58,7 @@ for j = 1:size(coal_gen_boiler_wapcd,1) % for each generator
     % ESP, ACI+ESP, ESP+wFGD, ACI+ESP+wFGD, SCR+ESP+wFGD, ACI+SCR+ESP+wFGD
     % note that we have a CS-ESP and a HS-ESP split.  
     if sum(strcmp(apcd_list, 'csESP') + strcmp(apcd_list, 'hsESP')) > 1
-        j
+        j % boilers with both csESP and hsESP installed 
     end 
     for k = 1:size(apcd_list,1)
         apcd = apcd_list{k,1}; 
@@ -68,12 +69,11 @@ for j = 1:size(coal_gen_boiler_wapcd,1) % for each generator
     end     
 
 end 
-%%
-% append the apcd codes to the end of the table, name the header, and set
+%% append the apcd codes to the end of the table, name the header, and set
 % it to the output 
-coal_gen_boiler_wapcd(:,end+1) = array2table(apcd_code); 
-coal_gen_boiler_wapcd.Properties.VariableNames(end) = {'apcds'};
+coal_gen_boiler_apcd(:,end+1) = array2table(apcd_code); 
+coal_gen_boiler_apcd.Properties.VariableNames(end) = {'apcds'};
 
-coal_gen_boiler_wapcd_out = coal_gen_boiler_wapcd;
+coal_gen_boiler_wapcd_out = coal_gen_boiler_apcd;
 
 end 

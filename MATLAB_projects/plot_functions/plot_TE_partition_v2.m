@@ -13,9 +13,10 @@ function [lit_phases_by_TE, legend_cell] = plot_TE_partition_v2(lit_removal)
 
 %% convert lit_removal to cell for plot
 lit_to_plot = cell2table(lit_removal); 
-lit_to_plot.lit_removal2(11) = 703; % set NRMRL to arbitrarily large apcd codes so that the plot can plot them in the correct order 
-lit_to_plot.lit_removal2(20) = 701;
-lit_to_plot.lit_removal2(21) = 702;
+lit_to_plot.lit_removal2(11) = 703; % for the Flora study
+lit_to_plot.lit_removal2(end-2) = 1000; % for the DSI study
+lit_to_plot.lit_removal2(end-1) = 701; % set NRMRL to arbitrarily large apcd codes so that the plot can plot them in the correct order 
+lit_to_plot.lit_removal2(end) = 702;
 lit_to_plot = sortrows(lit_to_plot,'lit_removal1','ascend'); % plot by pollution combination 
 lit_to_plot = sortrows(lit_to_plot,'lit_removal2','ascend'); % plot by pollution combination 
 lit_removal = table2cell(lit_to_plot); 
@@ -56,9 +57,8 @@ for k = 1:4
         lit_phases_by_TE(i,k+2) = {[solid(i,k) liq(i,k) gas(i,k)]}; 
     end 
 end 
-lit_phases_by_TE = cell2table(lit_phases_by_TE); 
-% lit_phases_by_TE = sortrows(lit_phases_by_TE,'lit_phases_by_TE1','ascend');
-lit_phases_by_TE = table2cell(lit_phases_by_TE); 
+% lit_phases_by_TE = cell2table(lit_phases_by_TE); 
+% lit_phases_by_TE = table2cell(lit_phases_by_TE); 
 %% plot figure
 % http://colorbrewer2.org/#type=diverging&scheme=RdYlBu&n=5
 color_scheme = [215 25 28; 
@@ -134,6 +134,9 @@ for k = 1:4
     print(strcat('../Figures/Fig2_TE_partition_by_study_',num2str(k)),'-dpdf','-r300'); 
 
 end
+
+%% correct output
+lit_phases_by_TE(11:14,2) = {101, 201, 401, 4000}; 
 
 end 
 

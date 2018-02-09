@@ -1,4 +1,4 @@
-function plot_med_partition_cdf(boot_remov_hg, boot_remov_se, boot_remov_as, boot_remov_cl)
+function med_array = plot_med_partition_cdf(boot_remov_hg, boot_remov_se, boot_remov_as, boot_remov_cl)
 %% do the following
 % distribution of each plant 
 % find the median, min, max, 25th %, and 75th %
@@ -10,9 +10,9 @@ remov_stats_hg = 0;
 remov_stats_se = 0; 
 remov_stats_as = 0; 
 remov_stats_cl = 0; 
-med_array = nan(400,12);
-prctl_25 = nan(400,12);
-prctl_75 = nan(400,12);
+med_array = nan(1000,12);
+prctl_25 = nan(1000,12);
+prctl_75 = nan(1000,12);
 
 for k = 1:4
     if k == 1
@@ -38,23 +38,7 @@ for k = 1:4
         med_array(i,col_idx) = median(TE_phases,'omitnan'); 
         prctl_25(i,col_idx) = prctile(TE_phases,25); % prctile treats NaNs as missing values and removes them
         prctl_75(i,col_idx) = prctile(TE_phases,75); % prctile treats NaNs as missing values and removes them
-%         TE_conc_stats(i,4) = {min(TE_phases)}; % prctile treats NaNs as missing values and removes them
-%         TE_conc_stats(i,5) = {max(TE_phases)}; % prctile treats NaNs as missing values and removes them
     end 
-%     TE_conc_stats = array2table(TE_conc_stats); 
-%     TE_conc_stats = horzcat(cell2table(boot_remov_TE(:,1:2)), TE_conc_stats); 
-%     TE_conc_stats.Properties.VariableNames = {'Plant_Code','Plant_Boiler','median','percentile_25','percentile_75','min','max'}; 
-%     TE_conc_stats = sortrows(TE_conc_stats,'median','ascend');
-%     TE_conc_stats(isnan(TE_conc_stats.median),:) = []; % remove plants without TE information 
-%     if k == 1
-%         remov_stats_hg = TE_conc_stats;
-%     elseif k == 2
-%         remov_stats_se = TE_conc_stats;
-%     elseif k == 3
-%         remov_stats_as = TE_conc_stats;
-%     elseif k == 4
-%         remov_stats_cl = TE_conc_stats;
-%     end 
 end 
 
 %%
@@ -64,7 +48,6 @@ figure('Color','w','Units','inches','Position',[0.25 0.25 8 8]) % was 1.25
 axes('Position',[0.15 0.15 0.8 0.8]) % x pos, y pos, x width, y height
 for k = 1:4 
     subplot(2,2,k);
-    trace_name_ppm = {'Hg_ppm','Se_ppm','As_ppm','Cl_ppm'}; 
     color = {'r','k','b','g'}; 
 
     % trace_coal_input = table2array(boot_cq_TE(:,trace_name_ppm)); 

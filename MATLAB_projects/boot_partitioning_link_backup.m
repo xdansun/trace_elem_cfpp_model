@@ -33,67 +33,62 @@ so2_removal_te(:,1) = []; % remove first column
 so2_removal_te = table2array(cell2table(so2_removal_te)); 
 so2_removal_te(isnan(so2_removal_te(:,2)),:) = []; % remove all nans from partitioning 
 
-% create a source variable that is not manipulated 
-pm_removal_source = pm_removal_te; 
-so2_removal_source = so2_removal_te; 
 
 %% for each coal generator, create bootstrapped removal distribution for TE poll
 boot_part = cell(size(coal_gen_boiler_apcd,1),1); 
-
-pm_removal_te = pm_removal_source; % for testing
-so2_removal_te = so2_removal_source; % for testing
+pm_removal_backup = pm_removal_te; 
+so2_removal_backup = so2_removal_te; 
 
 if strcmp(te,'Hg') == 1
     cb_apcds = coal_gen_boiler_apcd.apcds; % only keep plants that we have literature data for 
     cb_apcd_so2 = floor(rem(cb_apcds/1000,10)); % pull the so2 control codes 
     cb_apcd_pm = floor(rem(cb_apcds/100,10)); % pull the pm control codes
-    cb_apcd_nox = floor(rem(cb_apcds/10,10)); % pull the nox control codes
-    cb_apcd_hg = floor(rem(cb_apcds,10)); % pull the hg control codes
+    cb_apcd_nox = floor(rem(cb_apcds/10,10)); % pull the pm control codes
+    cb_apcd_hg = floor(rem(cb_apcds,10)); % pull the pm control codes
     
-    for i = 1:size(coal_gen_boiler_apcd,1) % for each boiler 
+    for i = 1 %:size(coal_gen_boiler_apcd,1) % for each boiler 
         te_part = zeros(trials,1); % initialize partition array
         
-        lit_apcds_hg = floor(rem(pm_removal_source(:,1)/1,10));
-        lit_apcds_nox = floor(rem(so2_removal_source(:,1)/10,10));
+        lit_apcds_hg = floor(rem(pm_removal_te(:,1)/1,10));
+        lit_apcds_nox = floor(rem(so2_removal_te(:,1)/10,10));
         
         if cb_apcd_so2(i) < 3 % if there is only a wFGD or dFGD control 
             % assume wFGD will be the last air emission control 
-            pm_ctrl = cb_apcd_pm(i);
-            while pm_ctrl > 0    
-                                
-                if cb_apcd_hg(i) == 1 % if there is ACI, remove all non ACI studies 
-                    pm_removal_te = pm_removal_source(lit_apcds_hg == 1,:); 
-                    cb_apcd_hg(i) = cb_apcd_hg(i) - 1;
+            % if there is ACI, remove all non ACI studies 
+            % if there is SCR, remove all non SCR studies 
+            % when replacing pm_removal_te, it needs to be coded as a
+            % differnt variable name 
+            
+                if cb_apcd_hg(i) == 1
+                    pm_removal_te = pm_removal_te(lit_apcds_hg == 1,:); 
                 else 
-                    pm_removal_te = pm_removal_source(lit_apcds_hg == 0,:); 
+                    pm_removal_te = pm_removal_te(lit_apcds_hg == 0,:); 
                 end 
-                if cb_apcd_nox(i) == 1 % if there is SCR, remove all non SCR studies 
-                    so2_removal_te = so2_removal_source(lit_apcds_nox == 1,:); 
+                if cb_apcd_nox(i) == 1
+                    so2_removal_te = so2_removal_te(lit_apcds_nox == 1,:); 
                 else
-                    so2_removal_te = so2_removal_source(lit_apcds_nox == 0,:); 
+                    so2_removal_te = so2_removal_te(lit_apcds_nox == 0,:); 
                 end 
-                               
                 lit_apcds_pm = floor(rem(pm_removal_te(:,1)/100,10));
                 lit_apcds_so2 = floor(rem(so2_removal_te(:,1)/1000,10));
-                            
-                if pm_ctrl == 1 || pm_ctrl == 3 || pm_ctrl == 5 % csESP is one of the controls
-                    index = find(lit_apcds_pm == 1); % for csESP
-                    pm_ctrl = pm_ctrl - 1;
-                elseif pm_ctrl >= 4 % FF is one of the controls 
+                pm_ctrl = cb_apcd_pm(i); 
+            while pm_ctrl > 0
+                if pm_ctrl >= 4 % FF is one of the controls 
                     index = find(lit_apcds_pm == 4); % for FF 
                     pm_ctrl = pm_ctrl - 4; 
                 elseif pm_ctrl >= 2 % hsESP is one of the controls 
                     index = find(lit_apcds_pm == 2); % for hsESP
                     pm_ctrl = pm_ctrl - 2; 
+                elseif pm_ctrl == 1 % csESP is one of the controls
+                    index = find(lit_apcds_pm == 1); % for csESP
+                    pm_ctrl = pm_ctrl - 1;
                 end 
-                
                 if size(index,1) > 0
                     te_part = te_part + (1-te_part).*...
                         pm_removal_te(index(floor(1 + size(index,1)*rand(trials,1))),2); % randomly generate <num trials> of studies 
                 else 
                     te_part = nan; 
                 end 
-                
             end
             if isnan(te_part) ~= 1
                 te_part = [te_part zeros(trials,1) 1-te_part]; % define solid, liquid, gas
@@ -110,7 +105,9 @@ if strcmp(te,'Hg') == 1
         else 
             te_part = nan;     
         end
-
+        % reset removals
+        pm_removal_te = pm_removal_backup; 
+        so2_removal_te = so2_removal_backup; 
         boot_part(i,1) = {te_part}; 
     end 
 

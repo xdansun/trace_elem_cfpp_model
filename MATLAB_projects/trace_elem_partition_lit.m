@@ -10,7 +10,7 @@ ww_ratio = zeros(1,4);
 trace_exit_streams = cheng_trace_elem; 
 for k = 1:4
     post_esp = trace_exit_streams(3:end,k); 
-    ww_ratio(1,k) = post_esp(2)/sum(post_esp(1:2)); % for SCR&wFGD
+    ww_ratio(1,k) = post_esp(2)/sum(post_esp(1:2)); % Cl purge / (Cl purge + gypsum)
 end 
 
 % establish ww ratio for Alvarez Ayuso (not included because Alvarez-Ayuso
@@ -51,6 +51,7 @@ partitioning_lit(end+1,:) = ondov_trace_elem;
 partitioning_lit(end+1,:) = laudal_2000_esp_wfgd;
 partitioning_lit(end+1,:) = devito_2002_csesp_wfgd;
 partitioning_lit(end+1,:) = chu_porcella_1995_esp_wfgd;
+partitioning_lit(end+1,:) = laird_trace_elem_dsi;
 
 % separate scripts were not created for convenience 
 % ACI + PM controls 
@@ -81,7 +82,7 @@ partitioning_lit(end,5) = {[0 nan nan nan]};
 partitioning_lit(end,6) = {[0 nan nan nan]};
 partitioning_lit(end,7) = {[1 - mean(aci_removals(2,1:2)) nan nan nan]};
 
-%% internationl studies 
+%% international studies 
 % these are done using the old method, which produces the same output as
 % the new method. The new coding method uses fewer lines and is easier to
 % modify. The studies below have not been updated as they were not used in

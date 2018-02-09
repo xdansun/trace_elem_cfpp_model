@@ -1,4 +1,4 @@
-function [plt_blr_TE_emis, plt_TE_emis, med_emf] = boot_coal_cq_part_lit(...
+function [plt_blr_TE_emis, plt_TE_emis] = boot_coal_cq_part_lit(...
     coal_gen_boiler_apcd, boot_cq_TE, boot_remov_TE, ann_coal_gen, poll)
 
 %% DESCRIPTION NEEDED 
@@ -64,22 +64,44 @@ plt_blr_TE_emis = horzcat(plt_blr_coal_remov(:,{'Plant_Code','Plant_Boiler','Net
 plt_blr_TE_emis.Properties.VariableNames = {'Plant_Code','Plant_Boiler','Gen_MWh','emis_mg','emf_mg_MWh'}; 
 plt_blr_TE_emis = plt_blr_TE_emis(blrs_to_remov == 0,:); % remove boilers with nan coal inputs 
 %% aggregate data to the plant level 
-plt_TE_emis = unique(plt_blr_TE_emis(:,{'Plant_Code'})); 
+% this method adds the bootstrapped distributions together, which may not
+% be the most accurate way to aggregate median emissions at the plant level
 % 
+% plt_TE_emis = unique(plt_blr_TE_emis(:,{'Plant_Code'})); 
+% % 
+% gen = zeros(size(plt_TE_emis,1),1); % set array for generation 
+% plt_emis_emfs = cell(1,2); 
+% for i = 1:size(plt_TE_emis,1)
+%     blr_idx = find(plt_TE_emis.Plant_Code(i) == plt_blr_TE_emis.Plant_Code); 
+%     gen(i) = sum(plt_blr_TE_emis.Gen_MWh(blr_idx)); 
+%     emis = zeros(10000,3); 
+%     for j = 1:size(blr_idx,1)
+%         emis = emis + plt_blr_TE_emis.emis_mg{blr_idx(j),1};
+%     end 
+%     plt_emis_emfs(i,1) = {emis}; 
+%     plt_emis_emfs(i,2) = {emis/gen(i)};
+% end 
+% 
+% plt_TE_emis(:,end+1) = array2table(gen); 
+% plt_TE_emis.Properties.VariableNames = {'Plant_Code','Gen_MWh'}; 
+% plt_TE_emis = horzcat(plt_TE_emis, cell2table(plt_emis_emfs)); 
+% plt_TE_emis.Properties.VariableNames(end-1:end) = {'emis_mg','emf_mg_MWh'}; 
+
+% This approach takes the median total emission and adds them together at
+% the plant level 
+plt_TE_emis = unique(plt_blr_TE_emis(:,{'Plant_Code'})); 
+
+% emis = zeros(size(plt_TE_emis,1),3); % set array for emissions 
 gen = zeros(size(plt_TE_emis,1),1); % set array for generation 
 plt_emis_emfs = cell(1,2); 
 for i = 1:size(plt_TE_emis,1)
     blr_idx = find(plt_TE_emis.Plant_Code(i) == plt_blr_TE_emis.Plant_Code); 
     gen(i) = sum(plt_blr_TE_emis.Gen_MWh(blr_idx)); 
-    emis = zeros(10000,3); 
+    emis = zeros(1,3); 
     for j = 1:size(blr_idx,1)
-%         if isnan(plt_blr_TE_emis.emis_mg{blr_idx(j),1}) == 1 % if the emis at the boiler are nan, then that means the coal input is nan, thus plant aggreg is nan
-%             emis = nan;
-%             break;
-%         else
-            emis = emis + plt_blr_TE_emis.emis_mg{blr_idx(j),1}; 
-%         end
+        emis = emis + median(plt_blr_TE_emis.emis_mg{blr_idx(j),1},'omitnan');
     end 
+    emis = repmat(emis,[3 1]); % this is for testing purposes 
     plt_emis_emfs(i,1) = {emis}; 
     plt_emis_emfs(i,2) = {emis/gen(i)};
 end 
@@ -88,6 +110,7 @@ plt_TE_emis(:,end+1) = array2table(gen);
 plt_TE_emis.Properties.VariableNames = {'Plant_Code','Gen_MWh'}; 
 plt_TE_emis = horzcat(plt_TE_emis, cell2table(plt_emis_emfs)); 
 plt_TE_emis.Properties.VariableNames(end-1:end) = {'emis_mg','emf_mg_MWh'}; 
+
 
 %% report summary statistics
 % number of plants and generation of boilers modeled
@@ -99,12 +122,12 @@ annual_loadings = zeros(size(plt_TE_emis,1),3);
 for i = 1:size(plt_TE_emis,1)
     annual_loadings(i,:) = median(plt_TE_emis.emis_mg{i,1},'omitnan')/1e6; 
 end 
-fprintf('annual emissions %s (kg) of air, liquid, water %3.0f %3.0f %3.0f\n', poll, sum(annual_loadings,1,'omitnan'))
+fprintf('annual emissions %s (kg) of solid, liq, air (respect) %3.0f %3.0f %3.0f\n', poll, sum(annual_loadings,1,'omitnan'))
 
 %%
 med_emf = zeros(size(plt_TE_emis,1),3); 
 for i = 1:size(plt_TE_emis,1)
-    med_emf(i,:) = median(plt_TE_emis.emf_mg_MWh{i,1},'omitnan');
+    med_emf(i,:) =  median(plt_TE_emis.emf_mg_MWh{i,1}, 'omitnan');
 end 
 med_emf(isnan(med_emf)) = 0; % turn this off if analyze nonzero numbers only 
 med_emf(med_emf(:,1) == 0,:) = []; % remove plant with zero fuel consumption

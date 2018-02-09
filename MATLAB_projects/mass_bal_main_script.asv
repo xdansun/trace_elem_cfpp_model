@@ -130,7 +130,6 @@ end
 % two purchase from similar counties with high chlorine concentrations in
 % coal.
 
-%% START HERE %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% bootstrap trace element partitioning for each boiler 
 % convert partitioning by air pollution controls to phases 
 % the cells lit_phases_* are used to create Table S3??
@@ -151,15 +150,31 @@ boot_part_cl = boot_partitioning_link(coal_gen_boiler_apcd, pm_removal, so2_remo
 
 % see SI Section of this script to plot partitioning of trace elements to
 % the solid, liquid, and gaseous waste streams at each coal boiler (~ line 360) 
+%% more testing 
+[lit_phases_hg, lit_phases_se, lit_phases_as, lit_phases_cl] = partition_by_apcd_to_phases(lit_partition_US);
+boot_part_hg_sys = boot_partitioning(coal_gen_boiler_apcd, lit_phases_hg, trials, 'Hg');
+boot_part_as_sys = boot_partitioning(coal_gen_boiler_apcd, lit_phases_as, trials, 'As');
 
 %% test partitioning
-test = zeros(size(b
+boot_part = boot_part_as;
+test = zeros(size(boot_part,1),3); 
 for i = 1:size(test,1)
-    test
+    test(i,1) = median(boot_part{i,3}(:,1)); 
+    test(i,2) = median(boot_part{i,3}(:,2)); 
+    test(i,3) = median(boot_part{i,3}(:,3)); 
 end 
-test = cell2table(boot_part_hg); 
-test.Properties.VariableNames = {'Plant_Code','Plant_Boiler','partition'}; 
+test = cell2table(horzcat(boot_part, table2cell(array2table(test)))); 
+test.Properties.VariableNames = {'Plant_Code','Plant_Boiler','partition','med_solid','med_liq','med_gas'}; 
 
+boot_part_sys = boot_part_as_sys;
+test2 = zeros(size(boot_part_sys,1),3); 
+for i = 1:size(test2,1)
+    test2(i,1) = median(boot_part_sys{i,3}(:,1)); 
+    test2(i,2) = median(boot_part_sys{i,3}(:,2)); 
+    test2(i,3) = median(boot_part_sys{i,3}(:,3)); 
+end 
+test2 = cell2table(horzcat(boot_part_sys, table2cell(array2table(test2)))); 
+test2.Properties.VariableNames = {'Plant_Code','Plant_Boiler','partition','med_solid','med_liq','med_gas'}; 
 %% Produce Figure 4 - median waste stream factors of trace elements for CFPPs included in analysis 
 % prepare data for emissions across the US 
 % calculate total annual emissions from all plants 
@@ -174,8 +189,8 @@ close all;
 % Plot Figure S7 - median waste stream factors of trace elements for coal boilers included in analysis 
 plot_med_emf_cdf_blr(boot_blr_emis_hg, boot_blr_emis_se, boot_blr_emis_as, boot_blr_emis_cl)
 % Plot Figure 4 - median waste stream factors of trace elements for CFPPs included in analysis 
-plot_med_emf_cdf_plt(boot_plt_emis_hg, boot_plt_emis_se, boot_plt_emis_as, boot_plt_emis_cl); % create separate function for plant level modeling, some subtleties 
-
+plot_med_emf_cdf_plt(boot_plt_emis_hg, boot_plt_emis_se, boot_plt_emis_as, boot_plt_emis_cl); % create separate function for plant level modeling, some subtleties  
+% ^^ function will need to be fixed ^^
 %% Prepare data for Figure 5 
 % input coordinate data from EIA 
 [num,txt,raw] = xlsread('../data/EIA_860/2___Plant_Y2015_edited.xlsx','Plant'); 
@@ -188,10 +203,18 @@ clear raw txt num column_numbers row_start;
 % append latitude and longitude data to estimates of waste stream
 % emissions loadings and emissions factors 
 % output data into excel files. Use R to create maps. See r_map directory
-append_lat_long(boot_plt_emis_hg, plant_coord,'Hg'); 
-append_lat_long(boot_plt_emis_se, plant_coord,'Se'); 
-append_lat_long(boot_plt_emis_as, plant_coord,'As'); 
-append_lat_long(boot_plt_emis_cl, plant_coord,'Cl'); 
+map_hg = append_lat_long(boot_plt_emis_hg, plant_coord,'Hg'); 
+map_se = append_lat_long(boot_plt_emis_se, plant_coord,'Se'); 
+map_as = append_lat_long(boot_plt_emis_as, plant_coord,'As'); 
+map_cl = append_lat_long(boot_plt_emis_cl, plant_coord,'Cl'); 
+
+% it is worth noting that plant 6113 ended up with emissions nearly twice
+% of what was reported using old results 
+% Also, current figure says that the maximum As emissions is 35 kg while
+% the maximum for the old reasults was 8 kg. 
+% Meanwhile, mercury and chlorine emissions did not change much. Selenium
+% emissions doubled. Selenium is due to the higher liquid partition coefficients 
+% see figure with the part coefficients 
 
 %% Produce Figure 6 - compare bootstrapped mercury estimates to air against CEMS 
 % Load CEMS data
@@ -219,46 +242,6 @@ disp('median CEMS emf, median bootstrap emf, and median difference emf');
 median(comp_boot_cems_hg.cems_hg_emf_mg_MWh)
 median(comp_boot_cems_hg.med_hg_emf_stack)
 median(comp_boot_cems_hg.med_hg_emf_stack - comp_boot_cems_hg.cems_hg_emf_mg_MWh)
-
-%% see what kind of plants are dramatically overestimating 
-comp_boot_cems_hg(:,end+1) = array2table(comp_boot_cems_hg.med_hg_emf_stack - comp_boot_cems_hg.cems_hg_emf_mg_MWh); % estimated - actual 
-comp_boot_cems_hg.Properties.VariableNames{end} = 'med_dif';
-
-%% append trace element in coal conc 
-comp_boot_cems_hg = innerjoin(comp_boot_cems_hg, boot_cq_TE_tbl(:,1:2)); 
-foo = zeros(size(comp_boot_cems_hg,1),1); 
-for i = 1:size(foo,1)
-    foo(i,1) = median(comp_boot_cems_hg.hg_ppm{i,1});
-end 
-comp_boot_cems_hg(:,end+1) = array2table(foo); 
-%%
-comp_boot_cems_hg.Properties.VariableNames(end) = {'hg_ppm_med'}; 
-
-overest_hg = comp_boot_cems_hg(comp_boot_cems_hg.med_dif > 18, :); 
-overest_hg = innerjoin(overest_hg, coal_gen_boiler_apcd(:,[4 8:end]));
-% From playing around with the data, I find that the largest emission
-% differences correspond to plants with the largest estimates of hg waste stream to air 
-% for example, compare these:
-comp_boot_cems_hg = sortrows(comp_boot_cems_hg,'med_hg_emf_stack','descend');
-overest_hg = sortrows(overest_hg,'med_hg_emf_stack','ascend');
-
-% therefore, investigate if these plants also have the highest mercury
-% concentrations in coal 
-
-% see if these plants have lower removals than expected 
-% overest_hg = innerjoin(overest_hg, conc_stats_hg(:,{'Plant_Code','median'}));
-% med_remov = zeros(size(boot_part_hg,1),1); 
-% for i = 1:size(boot_part_hg,1)
-%     med_remov(i) = median(boot_part_hg{i,3}(:,3));
-% end 
-% med_remov = horzcat(cell2table(boot_part_hg(:,2)), array2table(med_remov)); 
-% med_remov.Properties.VariableNames = {'Plant_Boiler','med_remov'}; 
-% overest_hg = innerjoin(overest_hg, med_remov);
-% % needed removal 
-% foo = (overest_hg.median.*overest_hg.Fuel_Consumed*907./overest_hg.gen_mwh - ...
-%     overest_hg.cems_hg_emf_mg_MWh)./(overest_hg.median.*overest_hg.Fuel_Consumed*907./overest_hg.gen_mwh);
-% overest_hg(:,end+1) = array2table(foo); 
-
 
 disp('end of main paper'); 
 % error('success'); 
@@ -304,7 +287,7 @@ array = zeros(size(nerc_list,1),5);
 for i = 10 %1:size(nerc_list,1)
     idx = strcmp(coal_nerc_table.NERC_Region, nerc_list{i,1});
     nerc_plants = size(unique(coal_nerc_table.Plant_Code(idx)),1);
-    plants = innerjoin(boot_plt_emis_hg(:,{'Plant_Code'}), coal_nerc_table(idx,:))
+    plants = innerjoin(boot_plt_emis_hg(:,{'Plant_Code'}), coal_nerc_table(idx,:));
     array(i,1) = size(plants,1)/nerc_plants*100;
     plants = innerjoin(boot_plt_emis_se(:,{'Plant_Code'}), coal_nerc_table(idx,:)); 
     array(i,2) = size(plants,1)/nerc_plants*100;
@@ -379,8 +362,13 @@ plot_coalqual_samples(coalqual_samples, 'As');
 plot_coalqual_samples(coalqual_samples, 'Cl'); 
 
 %% SI Section 7: median trace element partitioning for each boiler 
-plot_med_partition_cdf(boot_part_hg, boot_part_se, boot_part_as, boot_part_cl);
+test = plot_med_partition_cdf(boot_part_hg, boot_part_se, boot_part_as, boot_part_cl);
 
+%% testing function - delete later
+% as_part = test(:, 1:3); 
+% as_part(isnan(as_part(:,1)),:) = []; 
+% as_part(:,4) = sum(as_part(:,1:3),2); 
+% as_part2 = sort(as_part); 
 %% summary statistics - calculate median partitioning of each boiler 
 boot_part_TE = boot_part_hg; % for other trace element, use boot_part_hg, boot_part_se, boot_part_as, or boot_part_cl;
 meds = zeros(size(boot_part_TE,1),3); 
@@ -392,9 +380,16 @@ min(meds)
 max(meds)
 
 %% SI Section 8 - calculate generation associated with air pollution controls  
+% this may need to be recalculated because the method of identifing APCDs
+% and marking them is slightly different. May need to change so that they
+% are consistent. 
+% DSI is presently inconsistent because DSI is reported as both a mercury
+% and SO2 control. It's unclear how I should handle DSI. 
+
 % determine generation across the fleet for single apcd type 
 % gen_pm_ctrls, gen_so2_ctrls, gen_nox_ctrls, and gen_hg_ctrls are used to
-% make Table S1
+% make Table S5
+
 gen_pm_ctrls = single_apcd_generation(coal_gen_boiler_apcd, 'PM'); 
 gen_so2_ctrls = single_apcd_generation(coal_gen_boiler_apcd, 'SO2'); 
 gen_nox_ctrls = single_apcd_generation(coal_gen_boiler_apcd, 'NOx'); 
@@ -487,8 +482,6 @@ test.Properties.VariableNames = {'Plant_Code'};
 test = innerjoin(test, plant_gen); 
 fprintf('Generation from plants that purchase coal from a single county: %1.0f\n', sum(test.Gen_MWh)); 
 
-%%
-
 %% SI Section 12 - Compare trace element concentration from COALQUAL vs 
 % MATS ICR (refered to as the hazardous air pollutants (HAPS) dataset) 
 [plant_trace_haps, haps_plant_data, haps_sampling_months] = read_in_haps_coal_data; % reads in input data
@@ -577,6 +570,72 @@ disp('fraction of coal generation from the MATS ICR - literature comparison data
 sum(foo.Net_Generation_Year_To_Date)/ann_coal_gen
 
 %% End SI 
+
+%% detailed side analysis on cems mercury estimates
+% mercury has an emission limit of 18 mg/MWh (for lignite fuels) and a
+% limit of 6 mg/MWh for non lignite fuels
+% need to explore what is causing emissions to be so far off 
+comp_boot_cems_hg(:,end+1) = array2table(comp_boot_cems_hg.med_hg_emf_stack - comp_boot_cems_hg.cems_hg_emf_mg_MWh); % estimated - actual 
+comp_boot_cems_hg.Properties.VariableNames{end} = 'med_dif';
+
+%% append trace element in coal conc 
+comp_boot_cems_hg = innerjoin(comp_boot_cems_hg, boot_cq_TE_tbl(:,1:2)); 
+foo = zeros(size(comp_boot_cems_hg,1),1); 
+for i = 1:size(foo,1)
+    foo(i,1) = median(comp_boot_cems_hg.hg_ppm{i,1});
+end 
+comp_boot_cems_hg(:,end+1) = array2table(foo); 
+comp_boot_cems_hg.Properties.VariableNames(end) = {'hg_ppm_med'}; 
+
+overest_hg = comp_boot_cems_hg(comp_boot_cems_hg.med_dif > 18, :); 
+overest_hg = innerjoin(overest_hg, coal_gen_boiler_apcd(:,[4 8:end]));
+% From playing around with the data, I find that the largest emission
+% differences correspond to plants with the largest estimates of hg waste stream to air 
+% for example, compare these:
+comp_boot_cems_hg = sortrows(comp_boot_cems_hg,'med_hg_emf_stack','descend');
+overest_hg = sortrows(overest_hg,'med_hg_emf_stack','ascend');
+
+%% append fuel consumption information
+comp_boot_cems_hg = innerjoin(comp_boot_cems_hg, coal_gen_boiler_apcd(:,{'Plant_Boiler','Fuel_Consumed'})); 
+
+%% estimate median partitioning 
+part_liq_sol = zeros(size(boot_part_hg,1),1); 
+for i = 1:size(boot_part_hg,1)
+    part = median(boot_part_hg{i,3},1); 
+    part_liq_sol(i) = part(1) + part(2); 
+end 
+boot_part_hg_med = horzcat(cell2table(boot_part_hg), array2table(part_liq_sol)); 
+boot_part_hg_med.Properties.VariableNames = {'Plant_Code','Plant_Boiler','boot_part','med_part'}; 
+boot_part_hg_med(:,'boot_part') = [];
+clear part part_liq_sol;
+%% estimate required removal necessary assuming coal estimates are correct
+emf_input = (comp_boot_cems_hg.hg_ppm_med*1e-6.*...
+    comp_boot_cems_hg.Fuel_Consumed*2000*453*1e3)./comp_boot_cems_hg.Gen_MWh; %ppm * tons * lbs/tons * g/lbs * mg/g
+part_req = (emf_input - comp_boot_cems_hg.cems_hg_emf_mg_MWh)./emf_input; 
+comp_boot_cems_hg = innerjoin(comp_boot_cems_hg, boot_part_hg_med(:,{'Plant_Boiler','med_part'})); 
+comp_boot_cems_hg = horzcat(comp_boot_cems_hg, array2table(part_req));
+comp_boot_cems_hg.Properties.VariableNames(end) = 
+% compare required removal to the removal estimated 
+% compare required coal concetnrations against estimate concentrations
+% compare against coal concentrations and removals reported in MATS 
+
+% therefore, investigate if these plants also have the highest mercury
+% concentrations in coal 
+
+% see if these plants have lower removals than expected 
+% overest_hg = innerjoin(overest_hg, conc_stats_hg(:,{'Plant_Code','median'}));
+% med_remov = zeros(size(boot_part_hg,1),1); 
+% for i = 1:size(boot_part_hg,1)
+%     med_remov(i) = median(boot_part_hg{i,3}(:,3));
+% end 
+% med_remov = horzcat(cell2table(boot_part_hg(:,2)), array2table(med_remov)); 
+% med_remov.Properties.VariableNames = {'Plant_Boiler','med_remov'}; 
+% overest_hg = innerjoin(overest_hg, med_remov);
+% % needed removal 
+% foo = (overest_hg.median.*overest_hg.Fuel_Consumed*907./overest_hg.gen_mwh - ...
+%     overest_hg.cems_hg_emf_mg_MWh)./(overest_hg.median.*overest_hg.Fuel_Consumed*907./overest_hg.gen_mwh);
+% overest_hg(:,end+1) = array2table(foo); 
+
 
 %% Create median waste stream factors of trace elements for CFPPs by eGRID subregions
 boot_plt_hg_egrid = innerjoin(boot_plt_emis_hg, egrid_subrgns); 

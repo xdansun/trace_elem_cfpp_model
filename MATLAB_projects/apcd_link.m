@@ -107,6 +107,59 @@ plant_apcds = merge_two_col(plant_apcds, col1, col5, {'Plant_Hg'});
 plant_apcds(:,{'Status','Particulate_Matter_Control_ID','SO2_Control_ID',...
     'NOx_Control_ID','Mercury_Control_ID'}) = []; 
 
+%% check to make sure all DSI's are actual SO2 controls 
+% first, import SO2 control data at the so2 control level from EIA 860-6-2
+[num,txt,raw] = xlsread('../data/EIA_860/6_2_EnviroEquip_Y2015.xlsx', 'FGD');
+column_numbers = [3 6:10]; % identify columns of interest from raw data files
+row_start = 2; % which row does the spreadsheet start
+boiler_so2_ctrls = table_scrub(raw, column_numbers, row_start); % convert the generator into a table 
+
+boiler_so2_ctrls = merge_two_col(boiler_so2_ctrls, 'Plant_Code', 'SO2_Control_ID', {'Plant_SO2'});
+
+% mark all so2 control IDs with DSI; here plants are required to report the
+% sorbent used. Since all sorbents reported on this sheet are used for
+% removing acid gases, if DSI is reported on schedule 6-1 but not on
+% schedule 6-2, then we can assume that the DSI is used for removing
+% mercury and not acid gases 
+flag = zeros(size(boiler_so2_ctrls,1),1); 
+for i = 1:size(boiler_so2_ctrls,1)
+    for j = 3:6 % for the different SO2_Types
+        if strcmp(boiler_so2_ctrls{i,j},'DSI') == 1
+            flag(i) = 1; 
+            break; 
+        end 
+    end 
+end 
+boiler_dsi = horzcat(boiler_so2_ctrls, array2table(flag)); 
+boiler_dsi.Properties.VariableNames(end) = {'DSI'}; 
+% boiler_dsi(:, 1:6) = []; % remove all unnecessary columns from boiler dsi 
+boiler_dsi(boiler_dsi.DSI == 0,:) = []; 
+%% find all DSIs in plant_apcds, if the SO2 ID does not match 
+dsi_idx = find(strcmp(plant_apcds.Equipment_Type, 'DSI')); 
+omit_plants = [564, 3149, 3399, 57919]; % these plants report DSI is unusual ways and likely have DSI installed at their plants 
+for i = 1:size(dsi_idx,1)
+    if sum(strcmp(plant_apcds.Plant_SO2(dsi_idx(i)), boiler_dsi.Plant_SO2)) < 1 
+        % if DSI reported in plant_apcds, but not in boiler_dsi
+        % implying DSI is used for ACI 
+        if sum(plant_apcds.Plant_Code(dsi_idx(i)) == omit_plants) == 0
+            plant_apcds.Equipment_Type(dsi_idx(i)) = {'ACI'}; 
+        end 
+    end 
+end 
+
+% These are the plant codes with reporting ambiguities 
+%         564 ??, probably DSI 
+%         1355 unclear, assume ACI
+%         1364 ACI
+%         3149 ?? probably DSI, but which boilers? 
+%         3399 DSI
+%         6071 ACI
+%         6073 ACI
+%         6124 ACI
+%         6190 ACI
+%         6772 ACI
+%        57919 DSI 
+
 %% rename apcd equipments from EIA for data analysis
 % EIA will also use acronyms that make it confusing to tell from first
 % inspection what the apcd is. Therefore, we rename it for our own

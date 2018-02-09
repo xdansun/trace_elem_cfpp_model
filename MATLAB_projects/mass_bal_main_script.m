@@ -51,8 +51,9 @@ coal_gen_boiler_apcd = identify_apcd_base10(coal_gen_boiler_apcd);
 % further fixing required; 
 % data in lit_partition_apcd_all used to create Table S4 
 [lit_partition_apcd_all, fgd_ww_ratio] = trace_elem_partition_lit; % include international studies
-lit_partition_US = lit_partition_apcd_all(1:21,:); % select only domestic studies for bootstrap partitioning
+lit_partition_US = lit_partition_apcd_all(1:22,:); % select only domestic studies for bootstrap partitioning
 
+%%
 close all; 
 lit_phases_by_TE = plot_TE_partition_v2(lit_partition_US);
 
@@ -62,9 +63,9 @@ lit_phases_by_TE = plot_TE_partition_v2(lit_partition_US);
 %% plot median partitioning coefficients for each air pollution control combination 
 % for linked based approach and whole process based approach 
 % fix apc codes for a few entries
-lit_phases_by_TE(11:13,2) = {101, 201, 401}; 
-[part_by_apc_link, part_by_apc_whole] = ...
-    plot_link_vs_whole_partition(pm_removal, so2_removal, lit_phases_by_TE, fgd_ww_ratio);
+
+% [part_by_apc_link, part_by_apc_whole] = ...
+%     plot_link_vs_whole_partition(pm_removal, so2_removal, lit_phases_by_TE, fgd_ww_ratio);
 
 % error('success'); 
 %% Produce Figure 3 - estimate TE concentrations in coal blends by bootstrapping
@@ -130,7 +131,6 @@ end
 % two purchase from similar counties with high chlorine concentrations in
 % coal.
 
-%% START HERE %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% bootstrap trace element partitioning for each boiler 
 % convert partitioning by air pollution controls to phases 
 % the cells lit_phases_* are used to create Table S3??
@@ -145,34 +145,57 @@ boot_part_se = boot_partitioning_link(coal_gen_boiler_apcd, pm_removal, so2_remo
 boot_part_as = boot_partitioning_link(coal_gen_boiler_apcd, pm_removal, so2_removal, fgd_ww_ratio, trials, 'As'); 
 boot_part_cl = boot_partitioning_link(coal_gen_boiler_apcd, pm_removal, so2_removal, fgd_ww_ratio, trials, 'Cl');
 
+display(1)
 % incorporate SDA + FF removal in Kilgroe et al. (2002)??
 % Also, in Aunela-Tapola, there is a dFGD removal, which is significant.
 % We can implement both? dFGD has a removal stream and doesn't 
 
 % see SI Section of this script to plot partitioning of trace elements to
 % the solid, liquid, and gaseous waste streams at each coal boiler (~ line 360) 
+
+%% estimate median partitioning 
+boot_part_test = boot_part_as;
+part_liq_sol = zeros(size(boot_part_test,1),1); 
+for i = 1:size(boot_part_test,1)
+    part = median(boot_part_test{i,3},1); 
+    part_liq_sol(i) = part(1) + part(2); 
+end 
+boot_part_test = horzcat(cell2table(boot_part_test), array2table(part_liq_sol)); 
+boot_part_test.Properties.VariableNames = {'Plant_Code','Plant_Boiler','boot_part','med_part'}; 
+boot_part_test = innerjoin(boot_part_test, coal_gen_boiler_apcd(:,{'Plant_Boiler','apcds'})); 
+% boot_part_hg_med(:,'boot_part') = [];
+clear part part_liq_sol;
+
 %% more testing 
 [lit_phases_hg, lit_phases_se, lit_phases_as, lit_phases_cl] = partition_by_apcd_to_phases(lit_partition_US);
 boot_part_hg_sys = boot_partitioning(coal_gen_boiler_apcd, lit_phases_hg, trials, 'Hg');
+boot_part_se_sys = boot_partitioning(coal_gen_boiler_apcd, lit_phases_se, trials, 'Se');
+boot_part_as_sys = boot_partitioning(coal_gen_boiler_apcd, lit_phases_as, trials, 'As');
+boot_part_cl_sys = boot_partitioning(coal_gen_boiler_apcd, lit_phases_cl, trials, 'Cl');
+
+%% compare partitioning of link to system 
+close all;
+comp_part = compare_partitioning(boot_part_se, boot_part_se_sys);
 
 %% test partitioning
-test = zeros(size(boot_part_hg,1),3); 
+boot_part = boot_part_as;
+test = zeros(size(boot_part,1),3); 
 for i = 1:size(test,1)
-    test(i,1) = median(boot_part_hg{i,3}(:,1)); 
-    test(i,2) = median(boot_part_hg{i,3}(:,2)); 
-    test(i,3) = median(boot_part_hg{i,3}(:,3)); 
+    test(i,1) = median(boot_part{i,3}(:,1)); 
+    test(i,2) = median(boot_part{i,3}(:,2)); 
+    test(i,3) = median(boot_part{i,3}(:,3)); 
 end 
-test = cell2table(horzcat(boot_part_hg, table2cell(array2table(test)))); 
+test = cell2table(horzcat(boot_part, table2cell(array2table(test)))); 
 test.Properties.VariableNames = {'Plant_Code','Plant_Boiler','partition','med_solid','med_liq','med_gas'}; 
 
-
-test2 = zeros(size(boot_part_hg_sys,1),3); 
+boot_part_sys = boot_part_as_sys;
+test2 = zeros(size(boot_part_sys,1),3); 
 for i = 1:size(test2,1)
-    test2(i,1) = median(boot_part_hg_sys{i,3}(:,1)); 
-    test2(i,2) = median(boot_part_hg_sys{i,3}(:,2)); 
-    test2(i,3) = median(boot_part_hg_sys{i,3}(:,3)); 
+    test2(i,1) = median(boot_part_sys{i,3}(:,1)); 
+    test2(i,2) = median(boot_part_sys{i,3}(:,2)); 
+    test2(i,3) = median(boot_part_sys{i,3}(:,3)); 
 end 
-test2 = cell2table(horzcat(boot_part_hg_sys, table2cell(array2table(test2)))); 
+test2 = cell2table(horzcat(boot_part_sys, table2cell(array2table(test2)))); 
 test2.Properties.VariableNames = {'Plant_Code','Plant_Boiler','partition','med_solid','med_liq','med_gas'}; 
 %% Produce Figure 4 - median waste stream factors of trace elements for CFPPs included in analysis 
 % prepare data for emissions across the US 
@@ -188,8 +211,8 @@ close all;
 % Plot Figure S7 - median waste stream factors of trace elements for coal boilers included in analysis 
 plot_med_emf_cdf_blr(boot_blr_emis_hg, boot_blr_emis_se, boot_blr_emis_as, boot_blr_emis_cl)
 % Plot Figure 4 - median waste stream factors of trace elements for CFPPs included in analysis 
-plot_med_emf_cdf_plt(boot_plt_emis_hg, boot_plt_emis_se, boot_plt_emis_as, boot_plt_emis_cl); % create separate function for plant level modeling, some subtleties 
-
+plot_med_emf_cdf_plt(boot_plt_emis_hg, boot_plt_emis_se, boot_plt_emis_as, boot_plt_emis_cl); % create separate function for plant level modeling, some subtleties  
+% ^^ function will need to be fixed ^^
 %% Prepare data for Figure 5 
 % input coordinate data from EIA 
 [num,txt,raw] = xlsread('../data/EIA_860/2___Plant_Y2015_edited.xlsx','Plant'); 
@@ -202,10 +225,18 @@ clear raw txt num column_numbers row_start;
 % append latitude and longitude data to estimates of waste stream
 % emissions loadings and emissions factors 
 % output data into excel files. Use R to create maps. See r_map directory
-append_lat_long(boot_plt_emis_hg, plant_coord,'Hg'); 
-append_lat_long(boot_plt_emis_se, plant_coord,'Se'); 
-test = append_lat_long(boot_plt_emis_as, plant_coord,'As'); 
-append_lat_long(boot_plt_emis_cl, plant_coord,'Cl'); 
+map_hg = append_lat_long(boot_plt_emis_hg, plant_coord,'Hg'); 
+map_se = append_lat_long(boot_plt_emis_se, plant_coord,'Se'); 
+map_as = append_lat_long(boot_plt_emis_as, plant_coord,'As'); 
+map_cl = append_lat_long(boot_plt_emis_cl, plant_coord,'Cl'); 
+
+% it is worth noting that plant 6113 ended up with emissions nearly twice
+% of what was reported using old results 
+% Also, current figure says that the maximum As emissions is 35 kg while
+% the maximum for the old reasults was 8 kg. 
+% Meanwhile, mercury and chlorine emissions did not change much. Selenium
+% emissions doubled. Selenium is due to the higher liquid partition coefficients 
+% see figure with the part coefficients 
 
 %% Produce Figure 6 - compare bootstrapped mercury estimates to air against CEMS 
 % Load CEMS data
@@ -233,46 +264,6 @@ disp('median CEMS emf, median bootstrap emf, and median difference emf');
 median(comp_boot_cems_hg.cems_hg_emf_mg_MWh)
 median(comp_boot_cems_hg.med_hg_emf_stack)
 median(comp_boot_cems_hg.med_hg_emf_stack - comp_boot_cems_hg.cems_hg_emf_mg_MWh)
-
-%% see what kind of plants are dramatically overestimating 
-comp_boot_cems_hg(:,end+1) = array2table(comp_boot_cems_hg.med_hg_emf_stack - comp_boot_cems_hg.cems_hg_emf_mg_MWh); % estimated - actual 
-comp_boot_cems_hg.Properties.VariableNames{end} = 'med_dif';
-
-%% append trace element in coal conc 
-comp_boot_cems_hg = innerjoin(comp_boot_cems_hg, boot_cq_TE_tbl(:,1:2)); 
-foo = zeros(size(comp_boot_cems_hg,1),1); 
-for i = 1:size(foo,1)
-    foo(i,1) = median(comp_boot_cems_hg.hg_ppm{i,1});
-end 
-comp_boot_cems_hg(:,end+1) = array2table(foo); 
-%%
-comp_boot_cems_hg.Properties.VariableNames(end) = {'hg_ppm_med'}; 
-
-overest_hg = comp_boot_cems_hg(comp_boot_cems_hg.med_dif > 18, :); 
-overest_hg = innerjoin(overest_hg, coal_gen_boiler_apcd(:,[4 8:end]));
-% From playing around with the data, I find that the largest emission
-% differences correspond to plants with the largest estimates of hg waste stream to air 
-% for example, compare these:
-comp_boot_cems_hg = sortrows(comp_boot_cems_hg,'med_hg_emf_stack','descend');
-overest_hg = sortrows(overest_hg,'med_hg_emf_stack','ascend');
-
-% therefore, investigate if these plants also have the highest mercury
-% concentrations in coal 
-
-% see if these plants have lower removals than expected 
-% overest_hg = innerjoin(overest_hg, conc_stats_hg(:,{'Plant_Code','median'}));
-% med_remov = zeros(size(boot_part_hg,1),1); 
-% for i = 1:size(boot_part_hg,1)
-%     med_remov(i) = median(boot_part_hg{i,3}(:,3));
-% end 
-% med_remov = horzcat(cell2table(boot_part_hg(:,2)), array2table(med_remov)); 
-% med_remov.Properties.VariableNames = {'Plant_Boiler','med_remov'}; 
-% overest_hg = innerjoin(overest_hg, med_remov);
-% % needed removal 
-% foo = (overest_hg.median.*overest_hg.Fuel_Consumed*907./overest_hg.gen_mwh - ...
-%     overest_hg.cems_hg_emf_mg_MWh)./(overest_hg.median.*overest_hg.Fuel_Consumed*907./overest_hg.gen_mwh);
-% overest_hg(:,end+1) = array2table(foo); 
-
 
 disp('end of main paper'); 
 % error('success'); 
@@ -393,8 +384,13 @@ plot_coalqual_samples(coalqual_samples, 'As');
 plot_coalqual_samples(coalqual_samples, 'Cl'); 
 
 %% SI Section 7: median trace element partitioning for each boiler 
-plot_med_partition_cdf(boot_part_hg, boot_part_se, boot_part_as, boot_part_cl);
+test = plot_med_partition_cdf(boot_part_hg, boot_part_se, boot_part_as, boot_part_cl);
 
+%% testing function - delete later
+% as_part = test(:, 1:3); 
+% as_part(isnan(as_part(:,1)),:) = []; 
+% as_part(:,4) = sum(as_part(:,1:3),2); 
+% as_part2 = sort(as_part); 
 %% summary statistics - calculate median partitioning of each boiler 
 boot_part_TE = boot_part_hg; % for other trace element, use boot_part_hg, boot_part_se, boot_part_as, or boot_part_cl;
 meds = zeros(size(boot_part_TE,1),3); 
@@ -406,9 +402,16 @@ min(meds)
 max(meds)
 
 %% SI Section 8 - calculate generation associated with air pollution controls  
+% this may need to be recalculated because the method of identifing APCDs
+% and marking them is slightly different. May need to change so that they
+% are consistent. 
+% DSI is presently inconsistent because DSI is reported as both a mercury
+% and SO2 control. It's unclear how I should handle DSI. 
+
 % determine generation across the fleet for single apcd type 
 % gen_pm_ctrls, gen_so2_ctrls, gen_nox_ctrls, and gen_hg_ctrls are used to
-% make Table S1
+% make Table S5
+
 gen_pm_ctrls = single_apcd_generation(coal_gen_boiler_apcd, 'PM'); 
 gen_so2_ctrls = single_apcd_generation(coal_gen_boiler_apcd, 'SO2'); 
 gen_nox_ctrls = single_apcd_generation(coal_gen_boiler_apcd, 'NOx'); 
@@ -501,8 +504,6 @@ test.Properties.VariableNames = {'Plant_Code'};
 test = innerjoin(test, plant_gen); 
 fprintf('Generation from plants that purchase coal from a single county: %1.0f\n', sum(test.Gen_MWh)); 
 
-%%
-
 %% SI Section 12 - Compare trace element concentration from COALQUAL vs 
 % MATS ICR (refered to as the hazardous air pollutants (HAPS) dataset) 
 [plant_trace_haps, haps_plant_data, haps_sampling_months] = read_in_haps_coal_data; % reads in input data
@@ -592,6 +593,71 @@ sum(foo.Net_Generation_Year_To_Date)/ann_coal_gen
 
 %% End SI 
 
+%% detailed side analysis on cems mercury estimates
+% mercury has an emission limit of 18 mg/MWh (for lignite fuels) and a
+% limit of 6 mg/MWh for non lignite fuels
+% need to explore what is causing emissions to be so far off 
+comp_boot_cems_hg(:,end+1) = array2table(comp_boot_cems_hg.med_hg_emf_stack - comp_boot_cems_hg.cems_hg_emf_mg_MWh); % estimated - actual 
+comp_boot_cems_hg.Properties.VariableNames{end} = 'med_dif';
+
+%% append trace element in coal conc 
+comp_boot_cems_hg = innerjoin(comp_boot_cems_hg, boot_cq_TE_tbl(:,1:2)); 
+foo = zeros(size(comp_boot_cems_hg,1),1); 
+for i = 1:size(foo,1)
+    foo(i,1) = median(comp_boot_cems_hg.hg_ppm{i,1});
+end 
+comp_boot_cems_hg(:,end+1) = array2table(foo); 
+comp_boot_cems_hg.Properties.VariableNames(end) = {'hg_ppm_med'}; 
+
+overest_hg = comp_boot_cems_hg(comp_boot_cems_hg.med_dif > 18, :); 
+overest_hg = innerjoin(overest_hg, coal_gen_boiler_apcd(:,[4 8:end]));
+% From playing around with the data, I find that the largest emission
+% differences correspond to plants with the largest estimates of hg waste stream to air 
+% for example, compare these:
+comp_boot_cems_hg = sortrows(comp_boot_cems_hg,'med_hg_emf_stack','descend');
+overest_hg = sortrows(overest_hg,'med_hg_emf_stack','ascend');
+
+%% append fuel consumption information
+comp_boot_cems_hg = innerjoin(comp_boot_cems_hg, coal_gen_boiler_apcd(:,{'Plant_Boiler','Fuel_Consumed'})); 
+
+%% estimate required hg removal assuming coal estimates are correct
+emf_input = (comp_boot_cems_hg.hg_ppm_med*1e-6.*...
+    comp_boot_cems_hg.Fuel_Consumed*2000*453*1e3)./comp_boot_cems_hg.Gen_MWh; %ppm * tons * lbs/tons * g/lbs * mg/g
+part_req = (emf_input - comp_boot_cems_hg.cems_hg_emf_mg_MWh)./emf_input; 
+comp_boot_cems_hg = innerjoin(comp_boot_cems_hg, boot_part_se_med(:,{'Plant_Boiler','med_part'})); 
+comp_boot_cems_hg = horzcat(comp_boot_cems_hg, array2table(part_req));
+comp_boot_cems_hg.Properties.VariableNames(end) = {'req_part'}; 
+% take difference of required and estimate partitioning 
+comp_boot_cems_hg(:,end+1) = array2table(comp_boot_cems_hg.med_part - comp_boot_cems_hg.req_part); 
+comp_boot_cems_hg.Properties.VariableNames(end) = {'dif_part'}; 
+
+%% estimate required hg concentration assuming hg removals are accurate
+comp_boot_cems_hg = innerjoin(comp_boot_cems_hg, coal_gen_boiler_apcd(:,{'Plant_Boiler','apcds'})); 
+
+%%
+
+
+% compare required coal concetnrations against estimate concentrations
+% compare against coal concentrations and removals reported in MATS 
+
+% therefore, investigate if these plants also have the highest mercury
+% concentrations in coal 
+
+% see if these plants have lower removals than expected 
+% overest_hg = innerjoin(overest_hg, conc_stats_hg(:,{'Plant_Code','median'}));
+% med_remov = zeros(size(boot_part_hg,1),1); 
+% for i = 1:size(boot_part_hg,1)
+%     med_remov(i) = median(boot_part_hg{i,3}(:,3));
+% end 
+% med_remov = horzcat(cell2table(boot_part_hg(:,2)), array2table(med_remov)); 
+% med_remov.Properties.VariableNames = {'Plant_Boiler','med_remov'}; 
+% overest_hg = innerjoin(overest_hg, med_remov);
+% % needed removal 
+% foo = (overest_hg.median.*overest_hg.Fuel_Consumed*907./overest_hg.gen_mwh - ...
+%     overest_hg.cems_hg_emf_mg_MWh)./(overest_hg.median.*overest_hg.Fuel_Consumed*907./overest_hg.gen_mwh);
+% overest_hg(:,end+1) = array2table(foo); 
+
+
 %% Create median waste stream factors of trace elements for CFPPs by eGRID subregions
 boot_plt_hg_egrid = innerjoin(boot_plt_emis_hg, egrid_subrgns); 
 boot_plt_se_egrid = innerjoin(boot_plt_emis_se, egrid_subrgns); 
@@ -611,7 +677,7 @@ clear subrgn_hg subrgn_se subrgn_as subrgn_cl;
 
 
 %% End of SI - Miscellaneous code follows underneath
-error('end of script'); 
+error('runs completed successfully - end of script'); 
 
 %% find number of boilers with wFGD PM and no wFGD so2 controls
 flag = zeros(size(coal_gen_boiler_apcd,1),2); 
@@ -637,412 +703,4 @@ sum(flag)
 
 
 
-
-
-%% check how many have retired for comparing coal purchases between 2010 and 2015 
-% [num,txt,raw] = xlsread('EIA_860\3_1_Generator_Y2015.xlsx','Retired and Canceled');
-% column_numbers = [3 7 24]; % identify columns of interest from raw data files
-% row_start = 2; % spreadsheet starts on row 2
-% % create a table of all the generators with certain columns of data 
-% retire_generators = table_scrub(raw, column_numbers, row_start);
-% % create Gen_ID
-% col1 = 'Plant_Code'; 
-% col2 = 'Generator_ID';
-% retire_generators = merge_two_col(retire_generators, col1, col2, {'Plant_Gen'});
-% %% 
-% retire_generators = retire_generators(strcmp(retire_generators.Status,'RE'),:); 
-% retire_plants = unique(retire_generators(:,{'Plant_Code'})); 
-% foo = innerjoin(retire_plants, plant_trace_haps);
-% test2 = innerjoin(foo, unique(coal_gen_boiler_apcd(:,{'Plant_Code'})));
-% match_plants = innerjoin(plant_trace_haps, unique(coal_generators(:,{'Plant_Code'})));
-% 
-% %% check how many fuel switched
-% [num,txt,raw] = xlsread('EIA_860\3_1_Generator_Y2015.xlsx','Operable');
-% column_numbers = [3 7 8]; % identify columns of interest from raw data files
-% row_start = 2; % spreadsheet starts on row 2
-% all_generators = table_scrub(raw, column_numbers, row_start);
-
-%% plot coal blends between plants, comparing 2010 and 2015 purchases 
-% close all;
-% amt_purch = amt_purch_2010;
-% figure; 
-% for i = 1:20
-%     hold on;
-%     ploty = amt_purch.coal_blend{i,1}; 
-%     plotx = ones(size(ploty,1),1)*i;
-%     plot(plotx, ploty,'*')
-% 
-%     for j = 1:size(plotx,1)
-%         if j > 3
-%             break;
-%         end
-%         txt1 = num2str(amt_purch.county{i,1}(j,1));
-%         text(plotx(j)+0.1,ploty(j),txt1);
-%     end
-% end 
-% 
-% amt_purch = amt_purch_2015;
-% figure; 
-% for i = 1:20
-%     hold on;
-%     ploty = amt_purch.coal_blend{i,1}; 
-%     plotx = ones(size(ploty,1),1)*i;
-%     plot(plotx, ploty,'*')
-% 
-%     for j = 1:size(plotx,1)
-%         if j > 3
-%             break;
-%         end
-%         txt1 = num2str(amt_purch.county{i,1}(j,1));
-%         text(plotx(j)+0.1,ploty(j),txt1);
-%     end
-% end 
-
-%%
-% amt_purch_2010 = innerjoin(amt_purch_2010, comp_cq_haps(:,{'Plant_Code'})); 
-% % compile coal purchase data in 2015 for plants appearing in CQ and HAPS
-% amt_purch_2015 = cell2table(cq_hg_2015(:,1:3)); 
-% amt_purch_2015.Properties.VariableNames = {'Plant_Code','county','tons'};
-% amt_purch_2015 = innerjoin(amt_purch_2015, amt_purch_2010(:,{'Plant_Code'})); 
-% % for each county, truncate the number (not interested in difference
-% % between ranks of coal) 
-% amt_purch = amt_purch_2010
-% for i = 1:size(amt_purch,1)
-%     counties = amt_purch.county{i,1};
-%     amt_purch.county{i,1} = round(counties);
-% end 
-% amt_purch_2010 = amt_purch; 
-% % repeat for 2015
-% amt_purch = amt_purch_2015;
-% for i = 1:size(amt_purch,1)
-%     counties = amt_purch.county{i,1};
-%     amt_purch.county{i,1} = round(counties);
-% end 
-% amt_purch_2015 = amt_purch; 
-% 
-% % estimate coal blend per each county 
-% amt_purch = amt_purch_2010; 
-% coal_blend = cell(size(amt_purch,1),1); 
-% for i = 1:size(amt_purch,1)
-%     coal_blend(i,1) = {amt_purch.tons{i,1}/sum(amt_purch.tons{i,1})};
-% end 
-% amt_purch(:,end+1) = coal_blend; 
-% amt_purch.Properties.VariableNames(end) = {'coal_blend'};
-% amt_purch_2010 = amt_purch; 
-% 
-% amt_purch = amt_purch_2015; 
-% coal_blend = cell(size(amt_purch,1),1); 
-% for i = 1:size(amt_purch,1)
-%     coal_blend(i,1) = {amt_purch.tons{i,1}/sum(amt_purch.tons{i,1})};
-% end 
-% amt_purch(:,end+1) = coal_blend; 
-% amt_purch.Properties.VariableNames(end) = {'coal_blend'};
-% amt_purch_2015 = amt_purch; 
-% 
-% %% number of counties in 2010 that appeared again in 2015
-% frac = zeros(size(amt_purch_2010,1),1); 
-% for i = 1:size(amt_purch_2010,1)
-%     counties_2010 = amt_purch_2010.county{i,1};
-%     counties_2015 = amt_purch_2015.county{i,1};
-%     for j = 1:size(counties_2010,1)
-%         idx = counties_2010(j,1) == counties_2015; 
-%         if sum(idx > 0)
-%             1
-%         else 
-%             frac(i) = frac(i) + 1; 
-%         end 
-%     end 
-%     % num
-%     frac(i) = frac(i)/size(counties_2010,1);
-% end
-% histogram(frac,'BinMethod','fd')
-% 
-% 
-% %% estimate the squared error for each plant 
-% % amt_purch = amt_purch_2010;
-% dif = zeros(size(amt_purch_2010,1),1); 
-% for i = 21% 1:size(amt_purch_2010,1)
-%     counties_2010 = amt_purch_2010.county{i,1};
-%     counties_2015 = amt_purch_2015.county{i,1};
-%     coal_blend_2010 = amt_purch_2010.coal_blend{i,1};
-%     coal_blend_2015 = amt_purch_2015.coal_blend{i,1};
-%     num = zeros(size(counties_2010,1),1); 
-%     for j = 1:size(counties_2010,1)
-%         idx = counties_2010(j,1) == counties_2015; 
-%         if sum(idx == 0)
-%             num(j) = coal_blend_2010(j,1)^2; 
-%         else
-%             num(j) = (coal_blend_2015(idx,1) - coal_blend_2010(j))^2; 
-%         end 
-%     end 
-%     % num
-%     dif(i) = sum(num)/sum(coal_blend_2010.*coal_blend_2010); 
-% end
-% 
-% plot(dif,'*');
-
-%% compare coal purchases in 2010 and in 2015
-% % comp_cq_haps = innerjoin(boot_cq_TE_2010_tbl, plant_trace_haps); % merge HAPS data with CQ bootstrap  
-% % compile coal purchase data in 2010 for plants appearing in CQ and HAPS
-% amt_purch_2010 = cell2table(cq_hg_2010(:,1:3)); 
-% amt_purch_2010.Properties.VariableNames = {'Plant_Code','county','tons'};
-% % iterate through all plants to make sure that all plants have actual
-% % county data 
-% flag = zeros(size(amt_purch_2010,1),1); 
-% for i = 1:size(amt_purch_2010,1)
-%     if size(amt_purch_2010.county{i,1},1) == 0
-%         flag(i) = 1; 
-%     end 
-% end 
-% amt_purch_2010(flag == 1,:) = []; 
-% % amt_purch_2010 = innerjoin(amt_purch_2010, comp_cq_haps(:,{'Plant_Code'})); 
-% 
-% amt_purch_2015 = cell2table(cq_hg_2015(:,1:3)); 
-% amt_purch_2015.Properties.VariableNames = {'Plant_Code','county','tons'};
-% amt_purch_2015 = innerjoin(amt_purch_2015, amt_purch_2010(:,{'Plant_Code'})); 
-% 
-% %% number of counties that appeared in 2010 or 2015 but not in both 
-% frac = zeros(size(amt_purch_2010,1),1); 
-% for i = 1:size(amt_purch_2010,1) % for each plant in 2010 
-%     counties_2010 = amt_purch_2010.county{i,1};
-%     counties_2015 = amt_purch_2015.county{i,1};
-%     counties = unique(vertcat(counties_2010, counties_2015)); 
-%     for j = 1:size(counties,1)
-%         idx1 = counties(j,1) == counties_2010; 
-%         idx2 = counties(j,1) == counties_2015; 
-%         if sum(idx1 > 0) && sum(idx2 > 0)
-%             1;
-%             frac(i) = frac(i) + 1; % count number of counties that appear in both 2010 and 2015 
-%         else
-%             1;
-%         end 
-%     end 
-%     % num
-%     frac(i) = frac(i)/size(counties,1); % estimate purchase fraction 
-% end
-% 
-% %% plot figure 
-% figure('Color','w','Units','inches','Position',[0.25 0.25 4 4]) % was 1.25
-% axes('Position',[0.2 0.2 0.75 0.75]) % x pos, y pos, x width, y height
-% 
-% plotx = sort(frac);
-% ploty = linspace(0,1,size(plotx,1));
-% 
-% % histogram(frac,'BinWidth',0.1)
-% plot(plotx, ploty,'k','LineWidth',1.6);
-% 
-% set(gca,'FontName','Arial','FontSize',14)
-% a=gca;
-% axis([0 1 0 1]);
-% set(a,'box','off','color','none')
-% b=axes('Position',get(a,'Position'),'box','on','xtick',[],'ytick',[]);
-% axes(a)
-% linkaxes([a b])
-% 
-% ylabel('F(x)');
-% xlabel('Purchase fraction');
-% 
-% grid off;
-% title('');
-% 
-% print(strcat('Figures/purchase_fraction_cdf'),'-dpdf','-r300')
-
-
-% cq_county_min_max = unique(coalqual_samples.fips_code);
-% cq_county_min_max(1,:) = []; % remove first row, which is fips code = 0; 
-% for i = 1:size(cq_county_min_max,1)
-%     cq_county_min_max(i,2) = max(coalqual_samples.Hg(coalqual_samples.fips_code == cq_county_min_max(i,1))) - ...
-%         min(coalqual_samples.Hg(coalqual_samples.fips_code == cq_county_min_max(i,1)));
-%     cq_county_min_max(i,3) = max(coalqual_samples.Se(coalqual_samples.fips_code == cq_county_min_max(i,1))) - ...
-%         min(coalqual_samples.Se(coalqual_samples.fips_code == cq_county_min_max(i,1)));
-%     cq_county_min_max(i,4) = max(coalqual_samples.As(coalqual_samples.fips_code == cq_county_min_max(i,1))) - ...
-%         min(coalqual_samples.As(coalqual_samples.fips_code == cq_county_min_max(i,1)));
-%     cq_county_min_max(i,5) = max(coalqual_samples.Cl(coalqual_samples.fips_code == cq_county_min_max(i,1))) - ...
-%         min(coalqual_samples.Cl(coalqual_samples.fips_code == cq_county_min_max(i,1)));
-% end 
-% 
-% %% plot as cdf
-% 
-% close all;
-% figure('Color','w','Units','inches','Position',[0.25 0.25 4 4]) % was 1.25
-% axes('Position',[0.18 0.2 0.75 0.75]) % x pos, y pos, x width, y height
-% 
-% % divide_array = [0.6 15 40 2100]; % defined based on the max_trace, but it's an arbitrary rule, so there's no way to automate this process
-% % scale = max(divide_array); 
-% color = {'r','k','b','g'}; 
-% hold on;
-% 
-% for k = 4%:4
-% %     subplot(2,2,k);
-% 
-%     plotx = sort(cq_county_min_max(:,k+1)); 
-%     plotx(isnan(plotx)) = []; 
-%     ploty = linspace(0,1,size(plotx,1));
-%     
-%     if k == 1
-%         h = plot(plotx,ploty,'--');
-%     elseif k == 2
-%         h = plot(plotx,ploty,'-.');
-%     elseif k == 3
-%         h = plot(plotx,ploty,':');
-%     elseif k == 4
-%         h = plot(plotx,ploty,'-');
-%     end 
-%     set(h,'LineWidth',1.8,'Color',color{k});
-% 
-% end
-% ylabel('F(x)'); 
-% xlabel({'Difference of max and min', 'concentration at each county (ppm)'}); 
-% set(gca,'FontName','Arial','FontSize',13)
-% a=gca;
-% set(a,'box','off','color','none')
-% % ylim([0 1]);
-% % axis([0 scale 0 1]);
-% axis([0 4000 0 1]);
-% b=axes('Position',get(a,'Position'),'box','on','xtick',[],'ytick',[]);
-% axes(a)
-% linkaxes([a b])
-% % a.XTick = linspace(0, 2100, 5); 
-% % a.XTickLabel = {'1','2','3','4'};
-% % legend(['Difference between' char(10) 'bootstrap and MATS ICR'],'MATS ICR');
-% legendcells = {'Mercury','Selenium','Arsenic','Chlorine'};
-% legend(legendcells(k),'Location','SouthEast');
-% legend boxoff;
-% 
-% % histogram();
-% 
-% %% 
-% cq_county_med = unique(coalqual_samples.fips_code);
-% cq_county_med(1,:) = []; % remove first row, which is fips code = 0; 
-% for i = 1:size(cq_county_med,1)
-%     cq_county_med(i,2) = median(coalqual_samples.Hg(coalqual_samples.fips_code == cq_county_med(i,1)));
-%     cq_county_med(i,3) = median(coalqual_samples.Se(coalqual_samples.fips_code == cq_county_med(i,1)));
-%     cq_county_med(i,4) = median(coalqual_samples.As(coalqual_samples.fips_code == cq_county_med(i,1)));
-%     cq_county_med(i,5) = median(coalqual_samples.Cl(coalqual_samples.fips_code == cq_county_med(i,1)));
-% end 
-% %%
-% close all;
-% figure('Color','w','Units','inches','Position',[0.25 0.25 4 4]) % was 1.25
-% axes('Position',[0.18 0.18 0.75 0.75]) % x pos, y pos, x width, y height
-% 
-% % divide_array = [0.6 15 40 2100]; % defined based on the max_trace, but it's an arbitrary rule, so there's no way to automate this process
-% % scale = max(divide_array); 
-% color = {'r','k','b','g'}; 
-% hold on;
-% 
-% for k = 4%:4
-% %     subplot(2,2,k);
-% 
-%     plotx = sort(cq_county_med(:,k+1)); 
-%     plotx(isnan(plotx)) = []; 
-%     ploty = linspace(0,1,size(plotx,1));
-%     
-%     if k == 1
-%         h = plot(plotx,ploty,'--');
-%     elseif k == 2
-%         h = plot(plotx,ploty,'-.');
-%     elseif k == 3
-%         h = plot(plotx,ploty,':');
-%     elseif k == 4
-%         h = plot(plotx,ploty,'-');
-%     end 
-%     set(h,'LineWidth',1.8,'Color',color{k});
-% 
-% end
-% ylabel('F(x)'); 
-% xlabel('Median concentration by county (ppm)'); 
-% set(gca,'FontName','Arial','FontSize',13)
-% a=gca;
-% set(a,'box','off','color','none')
-% % ylim([0 1]);
-% % axis([0 scale 0 1]);
-% b=axes('Position',get(a,'Position'),'box','on','xtick',[],'ytick',[]);
-% axes(a)
-% linkaxes([a b])
-% % a.XTick = linspace(0, 2100, 5); 
-% % a.XTickLabel = {'1','2','3','4'};
-% % legend(['Difference between' char(10) 'bootstrap and MATS ICR'],'MATS ICR');
-% legendcells = {'Mercury','Selenium','Arsenic','Chlorine'};
-% legend(legendcells(k),'Location','SouthEast');
-% legend boxoff;
-
-% plant_top_county_purch = zeros(size(unique(coal_purchases_2010.Plant_Id),1), 14);
-% plant_top_county_purch(:,1) = unique(coal_purchases_2010.Plant_Id); 
-% for i = 1:size(plant_top_county_purch,1)
-%     purchases_by_plant = coal_purchases_2010(coal_purchases_2010.Plant_Id == plant_top_county_purch(i,1),:); 
-%     county_purch_at_plant = unique(purchases_by_plant.county); 
-%     for j = 1:size(county_purch_at_plant,1)
-%         county_purch_at_plant(j,2) = sum(purchases_by_plant.QUANTITY(purchases_by_plant.county == county_purch_at_plant(j)));
-%     end 
-%     plant_top_county_purch(i,2) = county_purch_at_plant(max(county_purch_at_plant(:,2)) == county_purch_at_plant(:,2),1); 
-% end 
-% 
-% % for each plant, at each month, calculate fraction of coal from county
-% % with most purchases divided by total purchases that month
-% for i = 1:size(plant_top_county_purch,1)
-%     purchases_by_plant = coal_purchases_2010(coal_purchases_2010.Plant_Id == plant_top_county_purch(i,1),:); 
-%     for j = 1:12
-%         purchases_month_by_plant = purchases_by_plant(purchases_by_plant.MONTH == j,:);
-%         plant_top_county_purch(i,j+2) = sum(purchases_month_by_plant.QUANTITY(...
-%             purchases_month_by_plant.county == plant_top_county_purch(i,2)),'omitnan')/...
-%             sum(purchases_month_by_plant.QUANTITY,'omitnan'); 
-%     end 
-% end 
-% 
-% % keep power plants that are modeled in manuscript, merge generation 
-% plant_top_county_purch = array2table(plant_top_county_purch); 
-% plant_top_county_purch.Properties.VariableNames(1) = {'Plant_Code'}; 
-% plant_top_county_purch = innerjoin(plant_top_county_purch, unique(plant_gen));
-% plant_top_county_purch = table2array(sortrows(plant_top_county_purch,'Gen_MWh','descend'));
-% 
-% plant_top_county_purch(:,end+1) = 0;
-% for i = 1:size(plant_top_county_purch,1)
-%     plant_top_county_purch(i,end) = max(plant_top_county_purch(i,3:14)) - min(plant_top_county_purch(i,3:14));
-% end 
-% %% plot results for the first five plants 
-% close all;
-% figure('Color','w','Units','inches','Position',[0.25 0.25 4 4]) % was 1.25
-% axes('Position',[0.2 0.18 0.75 0.75]) % x pos, y pos, x width, y height
-% k = 1;
-% % figure('Color','w','Units','inches','Position',[0.25 0.25 8 8]) % was 1.25
-% % axes('Position',[0.2 0.15 0.75 0.75]) % x pos, y pos, x width, y height
-% % for k = 1:4 
-% %     subplot(2,2,k);
-% %     color = {'r','k','b','g'}; 
-% %     hold on; 
-% %     if k == 1
-% %         set(gca, 'Position', [0.15 0.6 0.3 0.33])
-% %     elseif k == 2
-% %         set(gca, 'Position', [0.6 0.6 0.3 0.33])
-% %     elseif k == 3
-% %         set(gca, 'Position', [0.15 0.15 0.3 0.33])
-% %     elseif k == 4
-% %         set(gca, 'Position', [0.6 0.15 0.3 0.33])
-% %     end 
-% 
-%     idx = (5*(k-1)+1):5*k;
-%     
-%     plot(1:12, plant_top_county_purch(idx, 3:14),'*--');
-% 
-%     xlabel('Months');
-%     ylabel({'Fraction of coal purchase by','county that supplies the most coal'}); 
-%     
-%     set(gca,'FontName','Arial','FontSize',13)
-%     a=gca;
-%     set(a,'box','off','color','none')
-%     b=axes('Position',get(a,'Position'),'box','on','xtick',[],'ytick',[]);
-%     axes(a)
-%     linkaxes([a b])
-%     axis([1 12 0 1]);
-%     a.XTick = 1:3:12; 
-%     a.XTickLabel = {'Jan','April','Jul','Oct'};
-%     legend(cellstr(num2str(plant_top_county_purch(idx,1), '%-d')));
-%     legend boxoff;
-% 
-% % end 
-% sum(plant_top_county_purch(1:20,15))/ann_coal_gen
-% 
-% %% plot difference between min and max of each plant 
-% histogram(plant_top_county_purch(:,end),'BinWidth',0.1);
-%     
 
