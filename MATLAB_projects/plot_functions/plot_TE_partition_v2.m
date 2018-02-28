@@ -1,9 +1,6 @@
 function [lit_phases_by_TE, legend_cell] = plot_TE_partition_v2(lit_removal)
-% description needed 
-
 % calculate air, solid, and liquid removals 
-% merge pm removal into so2 removal; use strcmp to determine which are
-% worth adding 
+% merge pm removal into so2 removal
 
 %% plot by air pollution control combination 
 % 0 is irrelevant, 100 is csESP, 101 is csESP+ACI, 200 is hsESP, 300 is FF,

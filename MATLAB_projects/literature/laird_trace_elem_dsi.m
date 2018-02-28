@@ -2,10 +2,10 @@ function [output_cell, study_name, apcd_combo] = laird_trace_elem_dsi
 % This function calculates the partitioning coefficients based on the
 % empirical data presented in the Laird et al. piece. "Results of DSI
 % testing to reduce HCl"
-% http://www.carmeusena.com/sites/default/files/ brochures/flue-gas-treatment/tp-mega-symp-paper107.pdf
+% http://www.carmeusena.com/sites/default/files/brochures/flue-gas-treatment/tp-mega-symp-paper107.pdf
 
 %% define study name and air pollution control combination
-study_name = 'Laird et al.'; 
+study_name = 'Laird et al. (2013)'; % determined date by inspecting the last date modified on the pdf 
 apcd_combo = 4000; 
 
 %% boiler 

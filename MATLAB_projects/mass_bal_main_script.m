@@ -53,12 +53,11 @@ coal_gen_boiler_apcd = identify_apcd_base10(coal_gen_boiler_apcd);
 [lit_partition_apcd_all, fgd_ww_ratio] = trace_elem_partition_lit; % include international studies
 lit_partition_US = lit_partition_apcd_all(1:22,:); % select only domestic studies for bootstrap partitioning
 
-%%
-close all; 
-lit_phases_by_TE = plot_TE_partition_v2(lit_partition_US);
-
-%% Aside, for each air pollution control combination, calculate partitioning via linked based approach
+% for each air pollution control, calculate partitioning via linked based approach
 [pm_removal, so2_removal] = linked_based_partition(lit_partition_US);
+
+close all; 
+plot_TE_partition_link(pm_removal, so2_removal, fgd_ww_ratio);
 
 %% plot median partitioning coefficients for each air pollution control combination 
 % for linked based approach and whole process based approach 
@@ -145,7 +144,6 @@ boot_part_se = boot_partitioning_link(coal_gen_boiler_apcd, pm_removal, so2_remo
 boot_part_as = boot_partitioning_link(coal_gen_boiler_apcd, pm_removal, so2_removal, fgd_ww_ratio, trials, 'As'); 
 boot_part_cl = boot_partitioning_link(coal_gen_boiler_apcd, pm_removal, so2_removal, fgd_ww_ratio, trials, 'Cl');
 
-display(1)
 % incorporate SDA + FF removal in Kilgroe et al. (2002)??
 % Also, in Aunela-Tapola, there is a dFGD removal, which is significant.
 % We can implement both? dFGD has a removal stream and doesn't 
@@ -175,7 +173,10 @@ boot_part_cl_sys = boot_partitioning(coal_gen_boiler_apcd, lit_phases_cl, trials
 
 %% compare partitioning of link to system 
 close all;
-comp_part = compare_partitioning(boot_part_se, boot_part_se_sys);
+comp_part_hg = compare_partitioning(boot_part_hg, boot_part_hg_sys,'Hg');
+comp_part_se = compare_partitioning(boot_part_se, boot_part_se_sys,'Se');
+comp_part_as = compare_partitioning(boot_part_as, boot_part_as_sys,'As');
+comp_part_cl = compare_partitioning(boot_part_cl, boot_part_cl_sys,'Cl');
 
 %% test partitioning
 boot_part = boot_part_as;
@@ -206,6 +207,9 @@ test2.Properties.VariableNames = {'Plant_Code','Plant_Boiler','partition','med_s
 [boot_blr_emis_as, boot_plt_emis_as] = boot_coal_cq_part_lit(coal_gen_boiler_apcd, boot_cq_TE, boot_part_as, ann_coal_gen, 'As');
 [boot_blr_emis_cl, boot_plt_emis_cl] = boot_coal_cq_part_lit(coal_gen_boiler_apcd, boot_cq_TE, boot_part_cl, ann_coal_gen, 'Cl');
 
+%% 
+% test = innerjoin(boot_blr_emis_as, coal_gen_boiler_apcd(:,{'Plant_Boiler','apcds'})); 
+
 %%
 close all; 
 % Plot Figure S7 - median waste stream factors of trace elements for coal boilers included in analysis 
@@ -222,14 +226,24 @@ plant_coord = table_scrub(raw, column_numbers, row_start); % create table from r
 plant_coord = innerjoin(plant_coord, egrid_subrgns); % merge egrid subregion data 
 clear raw txt num column_numbers row_start; 
 
+%%
 % append latitude and longitude data to estimates of waste stream
 % emissions loadings and emissions factors 
 % output data into excel files. Use R to create maps. See r_map directory
-map_hg = append_lat_long(boot_plt_emis_hg, plant_coord,'Hg'); 
-map_se = append_lat_long(boot_plt_emis_se, plant_coord,'Se'); 
-map_as = append_lat_long(boot_plt_emis_as, plant_coord,'As'); 
-map_cl = append_lat_long(boot_plt_emis_cl, plant_coord,'Cl'); 
+[map_hg, map_hg_egrid] = append_lat_long(boot_plt_emis_hg, plant_coord,'Hg'); 
+[map_se, map_se_egrid] = append_lat_long(boot_plt_emis_se, plant_coord,'Se'); 
+[map_as, map_as_egrid] = append_lat_long(boot_plt_emis_as, plant_coord,'As'); 
+[map_cl, map_cl_egrid] = append_lat_long(boot_plt_emis_cl, plant_coord,'Cl'); 
 
+%% 
+test = map_hg;
+test = test(test.liq_mg > 0,:);
+test = sortrows(test,'liq_mg','descend');
+sum(test.liq_mg(1:floor(size(test,1)*0.10)))/sum(test.liq_mg)
+
+%%
+test = innerjoin(map_as, coal_gen_boiler_apcd(:,{'Plant_Code','Fuel_Consumed','apcds'})); 
+test = sortrows(test,'liq_mg','descend');
 % it is worth noting that plant 6113 ended up with emissions nearly twice
 % of what was reported using old results 
 % Also, current figure says that the maximum As emissions is 35 kg while
@@ -264,6 +278,98 @@ disp('median CEMS emf, median bootstrap emf, and median difference emf');
 median(comp_boot_cems_hg.cems_hg_emf_mg_MWh)
 median(comp_boot_cems_hg.med_hg_emf_stack)
 median(comp_boot_cems_hg.med_hg_emf_stack - comp_boot_cems_hg.cems_hg_emf_mg_MWh)
+
+
+%% detailed side analysis on cems mercury estimates
+comp_boot_cems_hg = innerjoin(med_hg_emf_stack, cems_hg_emf_2015); % from main script
+% mercury has an emission limit of 18 mg/MWh (for lignite fuels) and a
+% limit of 6 mg/MWh for non lignite fuels
+% need to explore what is causing emissions to be so far off 
+comp_boot_cems_hg(:,end+1) = array2table(comp_boot_cems_hg.med_hg_emf_stack - comp_boot_cems_hg.cems_hg_emf_mg_MWh); % estimated - actual 
+comp_boot_cems_hg.Properties.VariableNames{end} = 'med_dif';
+
+% append trace element in coal conc 
+comp_boot_cems_hg = innerjoin(comp_boot_cems_hg, boot_cq_TE_tbl(:,1:2)); 
+foo = zeros(size(comp_boot_cems_hg,1),1); 
+for i = 1:size(foo,1)
+    foo(i,1) = median(comp_boot_cems_hg.hg_ppm{i,1});
+end 
+comp_boot_cems_hg(:,end+1) = array2table(foo); 
+comp_boot_cems_hg.Properties.VariableNames(end) = {'hg_ppm_med'}; 
+
+overest_hg = comp_boot_cems_hg(comp_boot_cems_hg.med_dif > 18, :); 
+overest_hg = innerjoin(overest_hg, coal_gen_boiler_apcd(:,[4 8:end]));
+% From playing around with the data, I find that the largest emission
+% differences correspond to plants with the largest estimates of hg waste stream to air 
+% for example, compare these:
+comp_boot_cems_hg = sortrows(comp_boot_cems_hg,'med_hg_emf_stack','descend');
+overest_hg = sortrows(overest_hg,'med_hg_emf_stack','ascend');
+
+% append fuel consumption information
+comp_boot_cems_hg = innerjoin(comp_boot_cems_hg, coal_gen_boiler_apcd(:,{'Plant_Boiler','Fuel_Consumed'})); 
+
+% estimate required hg removal assuming coal estimates are correct
+emf_input = (comp_boot_cems_hg.hg_ppm_med*1e-6.*...
+    comp_boot_cems_hg.Fuel_Consumed*2000*453*1e3)./comp_boot_cems_hg.Gen_MWh; %ppm * tons * lbs/tons * g/lbs * mg/g
+part_req = (emf_input - comp_boot_cems_hg.cems_hg_emf_mg_MWh)./emf_input; 
+boot_part_hg_med = boot_part_hg; 
+for i = 1:size(boot_part_hg_med,1)
+    boot_part_hg_med(i,4) = {1 - median(boot_part_hg{i,3}(:,3))}; % partition to liq + solids
+end
+boot_part_hg_med = cell2table(boot_part_hg_med);
+boot_part_hg_med.Properties.VariableNames = {'Plant_Code','Plant_Boiler','part','med_part'}; 
+comp_boot_cems_hg = innerjoin(comp_boot_cems_hg, boot_part_hg_med(:,{'Plant_Boiler','med_part'})); 
+comp_boot_cems_hg = horzcat(comp_boot_cems_hg, array2table(part_req));
+comp_boot_cems_hg.Properties.VariableNames(end) = {'req_part'}; 
+% take difference of required and estimate partitioning 
+comp_boot_cems_hg(:,end+1) = array2table(comp_boot_cems_hg.med_part - comp_boot_cems_hg.req_part); 
+comp_boot_cems_hg.Properties.VariableNames(end) = {'dif_part'}; 
+
+%% estimate required hg concentration assuming hg removals are accurate
+comp_boot_cems_hg = innerjoin(comp_boot_cems_hg, coal_gen_boiler_apcd(:,{'Plant_Boiler','apcds'})); 
+
+%%
+fitlm(comp_boot_cems_hg.med_part, comp_boot_cems_hg.med_dif)
+
+figure('Color','w','Units','inches','Position',[0.25 0.25 4 4]) % was 1.25
+axes('Position',[0.25 0.23 0.7 0.7]) % x pos, y pos, x width, y height
+
+plot(comp_boot_cems_hg.med_part, comp_boot_cems_hg.med_dif,'k*'); 
+
+xlabel({'Median bootstrapped partitioning','coefficient at the boiler level'});
+ylabel({'Difference of bootstrapped and', 'CEMS Hg emission factor (mg/MWh)'}); 
+
+set(gca,'FontName','Arial','FontSize',13)
+a=gca;
+set(a,'box','off','color','none')
+b=axes('Position',get(a,'Position'),'box','on','xtick',[],'ytick',[]);
+axes(a)
+linkaxes([a b])
+
+print('../Figures/Fig6_part_vs_CEMS_dif','-dpdf','-r300') % save figure (optional)
+
+
+%%
+% compare required coal concetnrations against estimate concentrations
+% compare against coal concentrations and removals reported in MATS 
+
+% therefore, investigate if these plants also have the highest mercury
+% concentrations in coal 
+
+% see if these plants have lower removals than expected 
+% overest_hg = innerjoin(overest_hg, conc_stats_hg(:,{'Plant_Code','median'}));
+% med_remov = zeros(size(boot_part_hg,1),1); 
+% for i = 1:size(boot_part_hg,1)
+%     med_remov(i) = median(boot_part_hg{i,3}(:,3));
+% end 
+% med_remov = horzcat(cell2table(boot_part_hg(:,2)), array2table(med_remov)); 
+% med_remov.Properties.VariableNames = {'Plant_Boiler','med_remov'}; 
+% overest_hg = innerjoin(overest_hg, med_remov);
+% % needed removal 
+% foo = (overest_hg.median.*overest_hg.Fuel_Consumed*907./overest_hg.gen_mwh - ...
+%     overest_hg.cems_hg_emf_mg_MWh)./(overest_hg.median.*overest_hg.Fuel_Consumed*907./overest_hg.gen_mwh);
+% overest_hg(:,end+1) = array2table(foo); 
+
 
 disp('end of main paper'); 
 % error('success'); 
@@ -320,13 +426,25 @@ for i = 10 %1:size(nerc_list,1)
     array(i,5) = nerc_plants; 
 end 
 %%
+boot_blr_emis_hg = innerjoin(boot_blr_emis_hg, coal_gen_boiler_apcd(:,{'Plant_Boiler','Nameplate_Capacity_MW','apcds'})); 
+boot_blr_emis_se = innerjoin(boot_blr_emis_se, coal_gen_boiler_apcd(:,{'Plant_Boiler','Nameplate_Capacity_MW','apcds'})); 
+boot_blr_emis_as = innerjoin(boot_blr_emis_as, coal_gen_boiler_apcd(:,{'Plant_Boiler','Nameplate_Capacity_MW','apcds'})); 
+boot_blr_emis_cl = innerjoin(boot_blr_emis_cl, coal_gen_boiler_apcd(:,{'Plant_Boiler','Nameplate_Capacity_MW','apcds'})); 
 
-% sum(boot_blr_emis_hg.Gen_MWh)/ann_coal_gen*100
-% sum(boot_blr_emis_se.Gen_MWh)/ann_coal_gen*100
-% sum(boot_blr_emis_as.Gen_MWh)/ann_coal_gen*100
+sum(boot_blr_emis_hg.Gen_MWh)/ann_coal_gen*100
+sum(boot_blr_emis_se.Gen_MWh)/ann_coal_gen*100
+sum(boot_blr_emis_as.Gen_MWh)/ann_coal_gen*100
 % ans =
 %    48.1362
-% sum(boot_blr_emis_cl.Gen_MWh)/ann_coal_gen*100
+sum(boot_blr_emis_cl.Gen_MWh)/ann_coal_gen*100
+
+ann_coal_cap = sum(coal_generators.Nameplate_Capacity_MW);
+sum(boot_blr_emis_hg.Nameplate_Capacity_MW)/ann_coal_cap*100
+sum(boot_blr_emis_se.Nameplate_Capacity_MW)/ann_coal_cap*100
+sum(boot_blr_emis_as.Nameplate_Capacity_MW)/ann_coal_cap*100
+% ans =
+%    48.1362
+sum(boot_blr_emis_cl.Nameplate_Capacity_MW)/ann_coal_cap*100
 % ans =
 %    33.8268
 % size(unique(boot_plt_emis_cl.Plant_Code),1)
@@ -344,6 +462,18 @@ end
 % size(unique(boot_plt_emis_cl.Plant_Code),1)/size(unique(coal_generators.Plant_Code),1)*100
 % ans =
 %    25.4587
+
+% estimate number of plants with wFGDs (this matters for estimating average
+% FGD wastewater discharges)
+fprintf('number of plants with wFGD when estimating Hg: %3.0f\n', ...
+    size(unique(boot_blr_emis_hg.Plant_Code(floor(boot_blr_emis_hg.apcds/1000) == 1)),1))
+fprintf('number of plants with wFGD when estimating Se: %3.0f\n', ...
+    size(unique(boot_blr_emis_se.Plant_Code(floor(boot_blr_emis_se.apcds/1000) == 1)),1))
+fprintf('number of plants with wFGD when estimating As: %3.0f\n', ...
+    size(unique(boot_blr_emis_as.Plant_Code(floor(boot_blr_emis_as.apcds/1000) == 1)),1))
+fprintf('number of plants with wFGD when estimating Cl: %3.0f\n', ...
+    size(unique(boot_blr_emis_cl.Plant_Code(floor(boot_blr_emis_cl.apcds/1000) == 1)),1))
+
 %% End of main paper - Begin SI 
 %% SI Section 1 - Calculate coal generation at each eGRID subregion 
 coal_blrs_egrid = innerjoin(coal_gen_boilers, egrid_subrgns); % merge coal boilers (note, this includes all coal boilers) with egrid subregions
@@ -392,7 +522,7 @@ test = plot_med_partition_cdf(boot_part_hg, boot_part_se, boot_part_as, boot_par
 % as_part(:,4) = sum(as_part(:,1:3),2); 
 % as_part2 = sort(as_part); 
 %% summary statistics - calculate median partitioning of each boiler 
-boot_part_TE = boot_part_hg; % for other trace element, use boot_part_hg, boot_part_se, boot_part_as, or boot_part_cl;
+boot_part_TE = boot_part_cl; % for other trace element, use boot_part_hg, boot_part_se, boot_part_as, or boot_part_cl;
 meds = zeros(size(boot_part_TE,1),3); 
 for i = 1:size(boot_part_TE)
     meds(i,:) = median(boot_part_TE{i,3}); 
@@ -402,19 +532,13 @@ min(meds)
 max(meds)
 
 %% SI Section 8 - calculate generation associated with air pollution controls  
-% this may need to be recalculated because the method of identifing APCDs
-% and marking them is slightly different. May need to change so that they
-% are consistent. 
-% DSI is presently inconsistent because DSI is reported as both a mercury
-% and SO2 control. It's unclear how I should handle DSI. 
-
 % determine generation across the fleet for single apcd type 
 % gen_pm_ctrls, gen_so2_ctrls, gen_nox_ctrls, and gen_hg_ctrls are used to
 % make Table S5
 
-gen_pm_ctrls = single_apcd_generation(coal_gen_boiler_apcd, 'PM'); 
-gen_so2_ctrls = single_apcd_generation(coal_gen_boiler_apcd, 'SO2'); 
-gen_nox_ctrls = single_apcd_generation(coal_gen_boiler_apcd, 'NOx'); 
+gen_pm_ctrls = single_apcd_generation(coal_gen_boiler_apcd, ann_coal_gen, 'PM'); 
+gen_so2_ctrls = single_apcd_generation(coal_gen_boiler_apcd, ann_coal_gen, 'SO2'); 
+gen_nox_ctrls = single_apcd_generation(coal_gen_boiler_apcd, ann_coal_gen, 'NOx'); 
 % single_hg = single_apcd_generation(coal_gen_boiler_wapcd, 'Hg'); 
 % calculate generation associated with mercury controls, this is better
 % than the function above, because all boilers have a PM control installed,
@@ -452,6 +576,16 @@ display('generation treated by no ACI / coal generation');
 sum(coal_gen_boiler_apcd.Net_Generation_Year_To_Date(aci == 0))/ann_coal_gen
 % note that these do not add up to 1, because about 10% of coal generation
 % is excluded from analysis see SI Section XX??
+
+%% alternate way of calculate generation of air pollution controls at boilers
+apcd_hg = floor(rem(apcds,10)); 
+apcd_nox = floor(rem(apcds/10,10)); 
+apcd_pm = floor(rem(apcds/100,10)); 
+apcd_so2 = floor(rem(apcds/1000,10)); 
+
+cond = apcd_pm == 1;
+sum(coal_gen_boiler_apcd.Net_Generation_Year_To_Date(cond))/1e6
+sum(coal_gen_boiler_apcd.Net_Generation_Year_To_Date(cond))/ann_coal_gen
 
 
 %% SI Section 9 - temporal variability 
@@ -592,70 +726,8 @@ disp('fraction of coal generation from the MATS ICR - literature comparison data
 sum(foo.Net_Generation_Year_To_Date)/ann_coal_gen
 
 %% End SI 
+error('success, end of script'); 
 
-%% detailed side analysis on cems mercury estimates
-% mercury has an emission limit of 18 mg/MWh (for lignite fuels) and a
-% limit of 6 mg/MWh for non lignite fuels
-% need to explore what is causing emissions to be so far off 
-comp_boot_cems_hg(:,end+1) = array2table(comp_boot_cems_hg.med_hg_emf_stack - comp_boot_cems_hg.cems_hg_emf_mg_MWh); % estimated - actual 
-comp_boot_cems_hg.Properties.VariableNames{end} = 'med_dif';
-
-%% append trace element in coal conc 
-comp_boot_cems_hg = innerjoin(comp_boot_cems_hg, boot_cq_TE_tbl(:,1:2)); 
-foo = zeros(size(comp_boot_cems_hg,1),1); 
-for i = 1:size(foo,1)
-    foo(i,1) = median(comp_boot_cems_hg.hg_ppm{i,1});
-end 
-comp_boot_cems_hg(:,end+1) = array2table(foo); 
-comp_boot_cems_hg.Properties.VariableNames(end) = {'hg_ppm_med'}; 
-
-overest_hg = comp_boot_cems_hg(comp_boot_cems_hg.med_dif > 18, :); 
-overest_hg = innerjoin(overest_hg, coal_gen_boiler_apcd(:,[4 8:end]));
-% From playing around with the data, I find that the largest emission
-% differences correspond to plants with the largest estimates of hg waste stream to air 
-% for example, compare these:
-comp_boot_cems_hg = sortrows(comp_boot_cems_hg,'med_hg_emf_stack','descend');
-overest_hg = sortrows(overest_hg,'med_hg_emf_stack','ascend');
-
-%% append fuel consumption information
-comp_boot_cems_hg = innerjoin(comp_boot_cems_hg, coal_gen_boiler_apcd(:,{'Plant_Boiler','Fuel_Consumed'})); 
-
-%% estimate required hg removal assuming coal estimates are correct
-emf_input = (comp_boot_cems_hg.hg_ppm_med*1e-6.*...
-    comp_boot_cems_hg.Fuel_Consumed*2000*453*1e3)./comp_boot_cems_hg.Gen_MWh; %ppm * tons * lbs/tons * g/lbs * mg/g
-part_req = (emf_input - comp_boot_cems_hg.cems_hg_emf_mg_MWh)./emf_input; 
-comp_boot_cems_hg = innerjoin(comp_boot_cems_hg, boot_part_se_med(:,{'Plant_Boiler','med_part'})); 
-comp_boot_cems_hg = horzcat(comp_boot_cems_hg, array2table(part_req));
-comp_boot_cems_hg.Properties.VariableNames(end) = {'req_part'}; 
-% take difference of required and estimate partitioning 
-comp_boot_cems_hg(:,end+1) = array2table(comp_boot_cems_hg.med_part - comp_boot_cems_hg.req_part); 
-comp_boot_cems_hg.Properties.VariableNames(end) = {'dif_part'}; 
-
-%% estimate required hg concentration assuming hg removals are accurate
-comp_boot_cems_hg = innerjoin(comp_boot_cems_hg, coal_gen_boiler_apcd(:,{'Plant_Boiler','apcds'})); 
-
-%%
-
-
-% compare required coal concetnrations against estimate concentrations
-% compare against coal concentrations and removals reported in MATS 
-
-% therefore, investigate if these plants also have the highest mercury
-% concentrations in coal 
-
-% see if these plants have lower removals than expected 
-% overest_hg = innerjoin(overest_hg, conc_stats_hg(:,{'Plant_Code','median'}));
-% med_remov = zeros(size(boot_part_hg,1),1); 
-% for i = 1:size(boot_part_hg,1)
-%     med_remov(i) = median(boot_part_hg{i,3}(:,3));
-% end 
-% med_remov = horzcat(cell2table(boot_part_hg(:,2)), array2table(med_remov)); 
-% med_remov.Properties.VariableNames = {'Plant_Boiler','med_remov'}; 
-% overest_hg = innerjoin(overest_hg, med_remov);
-% % needed removal 
-% foo = (overest_hg.median.*overest_hg.Fuel_Consumed*907./overest_hg.gen_mwh - ...
-%     overest_hg.cems_hg_emf_mg_MWh)./(overest_hg.median.*overest_hg.Fuel_Consumed*907./overest_hg.gen_mwh);
-% overest_hg(:,end+1) = array2table(foo); 
 
 
 %% Create median waste stream factors of trace elements for CFPPs by eGRID subregions

@@ -57,11 +57,15 @@ for i = 1:size(plt_blr_coal_remov,1)
         TE_input = repmat(coal_dist*fuel_consumed(i)*907.185,[1 3]); % calculate in weight the amount of coal entering the boiler 
         plt_blr_TE_emis(i,1) = {TE_input.*phase_dist}; % calculate TE output in each phase [mg]
         plt_blr_TE_emis(i,2) = {TE_input.*phase_dist/gen(i)}; % calculate TE output in each phase [mg/MWh]
+        med_emf = median(TE_input.*phase_dist/gen(i)); 
+        plt_blr_TE_emis(i,3) = {med_emf(1)}; 
+        plt_blr_TE_emis(i,4) = {med_emf(2)}; 
+        plt_blr_TE_emis(i,5) = {med_emf(3)}; 
     end 
 end 
 
 plt_blr_TE_emis = horzcat(plt_blr_coal_remov(:,{'Plant_Code','Plant_Boiler','Net_Generation_Year_To_Date'}), cell2table(plt_blr_TE_emis)); 
-plt_blr_TE_emis.Properties.VariableNames = {'Plant_Code','Plant_Boiler','Gen_MWh','emis_mg','emf_mg_MWh'}; 
+plt_blr_TE_emis.Properties.VariableNames = {'Plant_Code','Plant_Boiler','Gen_MWh','emis_mg','emf_mg_MWh','sol','liq','gas'}; 
 plt_blr_TE_emis = plt_blr_TE_emis(blrs_to_remov == 0,:); % remove boilers with nan coal inputs 
 %% aggregate data to the plant level 
 % this method adds the bootstrapped distributions together, which may not
@@ -116,13 +120,21 @@ plt_TE_emis.Properties.VariableNames(end-1:end) = {'emis_mg','emf_mg_MWh'};
 % number of plants and generation of boilers modeled
 foo = innerjoin(plt_blr_TE_emis(:,{'Plant_Code','Plant_Boiler'}), coal_gen_boiler_apcd(:,{'Plant_Boiler','Net_Generation_Year_To_Date','apcds'}));
 fprintf('Estimated %s emissions for %1.0f plants\n', poll, size(unique(foo.Plant_Code),1)); 
+fprintf('Estimated %s emissions for %1.0f plants with wFGD \n', poll, size(unique(foo.Plant_Code(foo.apcds > 999)),1)); 
 fprintf('Estimated %s emissions for %1.3f (fraction) of total coal generation\n', poll, sum(foo.Net_Generation_Year_To_Date)/ann_coal_gen); 
 
-annual_loadings = zeros(size(plt_TE_emis,1),3); 
-for i = 1:size(plt_TE_emis,1)
-    annual_loadings(i,:) = median(plt_TE_emis.emis_mg{i,1},'omitnan')/1e6; 
+annual_loadings = zeros(3,3); 
+for i = 1:size(plt_blr_TE_emis,1)
+    emis = plt_blr_TE_emis.emis_mg{i,1};
+    annual_loadings(:,1) = annual_loadings(:,1)+ prctile(emis(:,1), [25, 50, 75])'/1e9; 
+    annual_loadings(:,2) = annual_loadings(:,2)+ prctile(emis(:,2), [25, 50, 75])'/1e9; 
+    annual_loadings(:,3) = annual_loadings(:,3)+ prctile(emis(:,3), [25, 50, 75])'/1e9; 
 end 
-fprintf('annual emissions %s (kg) of solid, liq, air (respect) %3.0f %3.0f %3.0f\n', poll, sum(annual_loadings,1,'omitnan'))
+fprintf('annual emissions (kg) 25, 50, and 75 percentile in: \n'); 
+fprintf('solid:\t %3.0f %3.0f %3.0f\n', annual_loadings(:,1));
+fprintf('liq: \t %3.2f %3.2f %3.2f\n', annual_loadings(:,2));
+fprintf('gas: \t %3.0f %3.0f %3.0f\n', annual_loadings(:,3));
+% sum(annual_loadings,1,'omitnan'))
 
 %%
 med_emf = zeros(size(plt_TE_emis,1),3); 
@@ -131,7 +143,7 @@ for i = 1:size(plt_TE_emis,1)
 end 
 med_emf(isnan(med_emf)) = 0; % turn this off if analyze nonzero numbers only 
 med_emf(med_emf(:,1) == 0,:) = []; % remove plant with zero fuel consumption
-fprintf('%s emf percentile (solid, liquid, gas) for 0th, 5th, 25th, 50th, 7th, 95th, and 100th', poll); 
-prctile(med_emf,[0 5 25 50 75 95 100],1)/10^3
+% fprintf('%s emf percentile (solid, liquid, gas) for 0th, 5th, 25th, 50th, 7th, 95th, and 100th', poll); 
+% prctile(med_emf,[0 5 25 50 75 95 100],1)/10^3
 end
 

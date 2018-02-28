@@ -1,4 +1,4 @@
-function apcd_table = single_apcd_generation(coal_gen_boiler_wapcd, poll_type) 
+function apcd_table = single_apcd_generation(coal_gen_boiler_wapcd, ann_coal_gen, poll_type) 
 %%
 % this function calculates the generation associated with each apcd based
 % on the pollution type and breaks down the generation for individual
@@ -77,10 +77,15 @@ for i = 1:size(apcd_ctrls)
 end 
 
 sum(apcd_generation) % sum the total generation for record keeping
-apcd_table = horzcat(cell2table(apcd_equip), array2table(apcd_generation), ...
-    array2table(multi_breakdown_gen)); % create an apcd_table with apcd:generation:multi_gen 
-apcd_table = sortrows(apcd_table,'apcd_generation','descend'); % sort rows for convenience
-apcd_table.Properties.VariableNames = {'apcd_type','generation','multi_gen'}; % name the headers 
+a = array2table(apcd_generation/1e6);
+b = array2table(multi_breakdown_gen/1e6); 
+c = array2table(apcd_generation/ann_coal_gen);
+a.Properties.VariableNames = {'dummy'}; 
+b.Properties.VariableNames = {'dummy2'}; 
+c.Properties.VariableNames = {'dummy3'}; 
+apcd_table = horzcat(cell2table(apcd_equip), a, b, c); % create an apcd_table with apcd:generation:multi_gen 
+apcd_table.Properties.VariableNames = {'apcd_type','generation','multi_gen','gen_share'}; % name the headers 
+apcd_table = sortrows(apcd_table,'generation','descend'); % sort rows for convenience
 end
 
 
