@@ -9,15 +9,19 @@ addpath('plot_functions'); % contains all plotting functions
 %% Input EIA Generator, boiler, and fuel data
 % add coal generators and boilers into the analysis 
 % exclude coal generators based on boiler/generator data limitations given in SI Section ??
-[coal_generators, coal_gen_boilers, ann_coal_gen] = create_coal_single_gen_boiler;  
+[coal_generators, coal_gen_boilers, ann_coal_gen, num_coal_plants] = create_coal_single_gen_boiler;  
 % obtain coal purchase data, exclude coal generators based on coal purchase
 % data limitations given in SI Section XX??
+
 [coal_gen_boilers, coal_purchases_2015] = ...
-    compile_coal_purchases(coal_gen_boilers, ann_coal_gen, 2015); 
+    compile_coal_purchases(coal_gen_boilers, ann_coal_gen, num_coal_plants, 2015); 
 % create coal:generator:boiler:fuels table, adds fuel consumption data at
 % the boiler level 
-coal_gen_blrs_wfuels = boiler_fuel_consumption(coal_gen_boilers,ann_coal_gen); 
 
+%%
+coal_gen_blrs_wfuels = boiler_fuel_consumption(coal_gen_boilers,ann_coal_gen, num_coal_plants); 
+
+%%
 % calculate elec generation at the plant level 
 plant_gen = unique(coal_gen_boilers.Plant_Code); 
 plant_gen(:,2) = 0; 
@@ -46,19 +50,32 @@ coal_gen_boiler_apcd = outerjoin(coal_gen_boiler_apcd,boiler_hg,'Type','left','M
 % mercury control is ones place 
 coal_gen_boiler_apcd = identify_apcd_base10(coal_gen_boiler_apcd); 
 
+% not sure if I want to actually remove these boilers; can assume dFGD + FF
+% is basically dFGD + pm control 
+% remove boilers with dFGD and not a FF. These boilers need to be removed because
+% we do not have partitioning factors for these boilers 
+% coal_gen_boiler_apcd = coal_gen_boiler_apcd(coal_gen_boiler_apcd.apcds < 2000 | coal_gen_boiler_apcd.apcds >= 2400,:); 
+
 %% Produce Figure 2 - partitioning of trace elements by study in the literature
 % Calculate partitioning by air pollution control for each study 
 % further fixing required; 
 % data in lit_partition_apcd_all used to create Table S4 
 [lit_partition_apcd_all, fgd_ww_ratio] = trace_elem_partition_lit; % include international studies
-lit_partition_US = lit_partition_apcd_all(1:22,:); % select only domestic studies for bootstrap partitioning
-
+lit_partition_US = lit_partition_apcd_all(1:25,:); % select only domestic studies for bootstrap partitioning
+lit_partition_international = lit_partition_apcd_all(26:end,:);
 % for each air pollution control, calculate partitioning via linked based approach
 [pm_removal, so2_removal] = linked_based_partition(lit_partition_US);
+[pm_removal_int, so2_removal_int] = linked_based_partition(lit_partition_international);
 
 close all; 
 plot_TE_partition_link(pm_removal, so2_removal, fgd_ww_ratio);
+% plot_TE_partition_link(pm_removal_int, so2_removal_int, fgd_ww_ratio);
 
+%% add sample level data points for specific study 
+lit_partition_US_addon = trace_elem_partition_lit_addon(lit_partition_US);
+[pm_removal, so2_removal] = linked_based_partition(lit_partition_US_addon);
+
+% plot_TE_partition_link(pm_removal, so2_removal, fgd_ww_ratio);
 %% plot median partitioning coefficients for each air pollution control combination 
 % for linked based approach and whole process based approach 
 % fix apc codes for a few entries
@@ -73,13 +90,15 @@ plot_TE_partition_link(pm_removal, so2_removal, fgd_ww_ratio);
 % TE conc = weighted average of TE samples by purchase quantity 
 
 % create discrete distributions of trace element concentrations in coal 
-[cq_hg_2015, cq_se_2015, cq_as_2015, cq_cl_2015, plants_no_cl_data] = coalqual_dist(coal_gen_boiler_apcd, coal_purchases_2015, 0);
+[cq_hg_2015, cq_se_2015, cq_as_2015, cq_cl_2015, plants_no_cl_data] = ...
+    coalqual_dist(coal_gen_boiler_apcd, coal_purchases_2015, 0);
 
+%%
 % calculate generation associated with chlorine plants removed 
-plants_no_cl_data = array2table(plants_no_cl_data(plants_no_cl_data > 0));
+plants_no_cl_data = array2table(plants_no_cl_data(plants_no_cl_data > 1));
 plants_no_cl_data.Properties.VariableNames = {'Plant_Code'}; 
 plants_no_cl_data = innerjoin(plants_no_cl_data, plant_gen); 
-fprintf('generation of chlorine plants removed (MWh) %1.0f\n', sum(plants_no_cl_data.Gen_MWh)); 
+fprintf('generation of chlorine plants removed (TWh) %1.0f\n', sum(plants_no_cl_data.Gen_MWh)/1e6); 
 
 trials = 10000; % define the number of trials for bootstrapping
 % bootstrap TE concentrations in coal blends for all plants in analysis 
@@ -94,8 +113,47 @@ plot_boot_coal_blend(boot_cq_TE, 'As');
 plot_boot_coal_blend(boot_cq_TE, 'Cl'); % revise to plot fewer plants and plants with data 
 
 % Plot Figure 3E)-3H) - CDF of median of coal blends 
-% close all;
+close all;
 [conc_stats_hg, conc_stats_se, conc_stats_as, conc_stats_cl] = plot_med_coal_blend(boot_cq_TE);
+
+% error('success'); 
+
+%% determine which states are missing Cl data in COALQUAL 
+% plant_list = plants_no_cl_data.Plant_Code; 
+plant_purch_county = cell2table(cq_hg_2015(:,1:2)); 
+plant_purch_county.Properties.VariableNames = {'Plant_Code','county_purchs'}; 
+plant_purch_county = innerjoin(plants_no_cl_data(:,1), plant_purch_county); 
+plant_purch_county = innerjoin(plant_purch_county, plant_gen); 
+%%
+states = zeros(2,1); 
+for i = 1:size(plant_purch_county,1)
+    states = vertcat(floor(plant_purch_county.county_purchs{i}/1000), states); 
+end 
+%%
+states = unique(states); 
+
+%%
+counties = zeros(2,1); 
+for i = 1:size(plant_purch_county,1)
+    counties = vertcat(plant_purch_county.county_purchs{i}, counties); 
+end 
+counties = unique(rem(counties(counties > 47000 & counties < 50000)*10,10));
+
+% https://www.census.gov/geo/reference/ansi_statetables.html
+% 4 is AZ - Rocky mountain province
+% 17 is IL - Eastern Interior
+% 18 is IN - Eastern interior
+% 29 is MO - Western interior
+% 47 is TN - multiple basins
+% glossary of provinces: https://pubs.usgs.gov/circ/c891/glossary.htm
+% map of reserves: https://pubs.usgs.gov/circ/c891/figures/figure7.htm
+% however, these reserves apparently means whether or not there are
+% economically extractable coal there... it's not clear if they have any
+% special geographical distinctions 
+% another resource if needed: https://igws.indiana.edu/Coal/Mercury.cfm
+
+
+
 
 %% summary statistics - calculate min, median, max, and mean of trace element conc in coal blends 
 disp('min, median, and max of trace element concentrations of all plants for Hg, Se, As, and Cl'); 
@@ -121,7 +179,7 @@ boot_cq_TE_subrgn = innerjoin(boot_cq_TE_tbl, egrid_subrgns);
 
 close all; 
 subrgn_list = unique(boot_cq_TE_subrgn.egrid_subrgn); 
-for i = 1:size(subrgn_list,1)
+for i = 1:2 %size(subrgn_list,1)
     subrgn = subrgn_list{i,1};
     subrgn_cq = boot_cq_TE_subrgn(strcmp(boot_cq_TE_subrgn.egrid_subrgn,subrgn),:);
 %     plot_med_coal_blend_egrid(table2cell(subrgn_cq(:,1:5)),subrgn);
@@ -139,6 +197,8 @@ end
 % paper because they report from the same piece (not upstream pm controls
 % are independent) 
 % bootstrap trace element partitioning for each boiler 
+trials = 10000;
+
 boot_part_hg = boot_partitioning_link(coal_gen_boiler_apcd, pm_removal, so2_removal, fgd_ww_ratio, trials, 'Hg'); 
 boot_part_se = boot_partitioning_link(coal_gen_boiler_apcd, pm_removal, so2_removal, fgd_ww_ratio, trials, 'Se'); 
 boot_part_as = boot_partitioning_link(coal_gen_boiler_apcd, pm_removal, so2_removal, fgd_ww_ratio, trials, 'As'); 
@@ -178,6 +238,12 @@ comp_part_se = compare_partitioning(boot_part_se, boot_part_se_sys,'Se');
 comp_part_as = compare_partitioning(boot_part_as, boot_part_as_sys,'As');
 comp_part_cl = compare_partitioning(boot_part_cl, boot_part_cl_sys,'Cl');
 
+%% 
+comp_part_hg = innerjoin(comp_part_hg, coal_gen_boiler_apcd(:,{'Plant_Boiler','apcds'})); 
+comp_part_se = innerjoin(comp_part_se, coal_gen_boiler_apcd(:,{'Plant_Boiler','apcds'})); 
+comp_part_as = innerjoin(comp_part_as, coal_gen_boiler_apcd(:,{'Plant_Boiler','apcds'})); 
+comp_part_cl = innerjoin(comp_part_cl, coal_gen_boiler_apcd(:,{'Plant_Boiler','apcds'})); 
+
 %% test partitioning
 boot_part = boot_part_as;
 test = zeros(size(boot_part,1),3); 
@@ -207,16 +273,13 @@ test2.Properties.VariableNames = {'Plant_Code','Plant_Boiler','partition','med_s
 [boot_blr_emis_as, boot_plt_emis_as] = boot_coal_cq_part_lit(coal_gen_boiler_apcd, boot_cq_TE, boot_part_as, ann_coal_gen, 'As');
 [boot_blr_emis_cl, boot_plt_emis_cl] = boot_coal_cq_part_lit(coal_gen_boiler_apcd, boot_cq_TE, boot_part_cl, ann_coal_gen, 'Cl');
 
-%% 
-% test = innerjoin(boot_blr_emis_as, coal_gen_boiler_apcd(:,{'Plant_Boiler','apcds'})); 
-
 %%
 close all; 
 % Plot Figure S7 - median waste stream factors of trace elements for coal boilers included in analysis 
 plot_med_emf_cdf_blr(boot_blr_emis_hg, boot_blr_emis_se, boot_blr_emis_as, boot_blr_emis_cl)
 % Plot Figure 4 - median waste stream factors of trace elements for CFPPs included in analysis 
 plot_med_emf_cdf_plt(boot_plt_emis_hg, boot_plt_emis_se, boot_plt_emis_as, boot_plt_emis_cl); % create separate function for plant level modeling, some subtleties  
-% ^^ function will need to be fixed ^^
+
 %% Prepare data for Figure 5 
 % input coordinate data from EIA 
 [num,txt,raw] = xlsread('../data/EIA_860/2___Plant_Y2015_edited.xlsx','Plant'); 
@@ -266,7 +329,6 @@ for i = 1:size(boot_blr_emis_hg,1)
 end 
 
 med_hg_emf_stack = horzcat(boot_blr_emis_hg, array2table(med_hg_emf_stack)); 
-
 % Plot Figure 6 - histogram and cdf comparing  
 comp_boot_cems_hg = innerjoin(med_hg_emf_stack, cems_hg_emf_2015); 
 close all; 
@@ -274,11 +336,10 @@ plot_cems_comparison(comp_boot_cems_hg)
 
 % summary statistics - median of CEMS, estimates, and difference of CEMS
 % and estimates
-disp('median CEMS emf, median bootstrap emf, and median difference emf'); 
-median(comp_boot_cems_hg.cems_hg_emf_mg_MWh)
-median(comp_boot_cems_hg.med_hg_emf_stack)
-median(comp_boot_cems_hg.med_hg_emf_stack - comp_boot_cems_hg.cems_hg_emf_mg_MWh)
-
+fprintf('median CEMS emf, median bootstrap emf, and median difference emf: %2.2f, %2.2f, %2.2f \n', ...
+    median(comp_boot_cems_hg.cems_hg_emf_mg_MWh), ...
+    median(comp_boot_cems_hg.med_hg_emf_stack), ...
+    median(comp_boot_cems_hg.med_hg_emf_stack - comp_boot_cems_hg.cems_hg_emf_mg_MWh)); 
 
 %% detailed side analysis on cems mercury estimates
 comp_boot_cems_hg = innerjoin(med_hg_emf_stack, cems_hg_emf_2015); % from main script
@@ -325,10 +386,9 @@ comp_boot_cems_hg.Properties.VariableNames(end) = {'req_part'};
 comp_boot_cems_hg(:,end+1) = array2table(comp_boot_cems_hg.med_part - comp_boot_cems_hg.req_part); 
 comp_boot_cems_hg.Properties.VariableNames(end) = {'dif_part'}; 
 
-%% estimate required hg concentration assuming hg removals are accurate
+% estimate required hg concentration assuming hg removals are accurate
 comp_boot_cems_hg = innerjoin(comp_boot_cems_hg, coal_gen_boiler_apcd(:,{'Plant_Boiler','apcds'})); 
 
-%%
 fitlm(comp_boot_cems_hg.med_part, comp_boot_cems_hg.med_dif)
 
 figure('Color','w','Units','inches','Position',[0.25 0.25 4 4]) % was 1.25
@@ -346,153 +406,39 @@ b=axes('Position',get(a,'Position'),'box','on','xtick',[],'ytick',[]);
 axes(a)
 linkaxes([a b])
 
-print('../Figures/Fig6_part_vs_CEMS_dif','-dpdf','-r300') % save figure (optional)
+print('../Figures/Fig_part_vs_CEMS_dif','-dpdf','-r300') % save figure (optional)
 
-
-%%
-% compare required coal concetnrations against estimate concentrations
-% compare against coal concentrations and removals reported in MATS 
-
-% therefore, investigate if these plants also have the highest mercury
-% concentrations in coal 
-
-% see if these plants have lower removals than expected 
-% overest_hg = innerjoin(overest_hg, conc_stats_hg(:,{'Plant_Code','median'}));
-% med_remov = zeros(size(boot_part_hg,1),1); 
-% for i = 1:size(boot_part_hg,1)
-%     med_remov(i) = median(boot_part_hg{i,3}(:,3));
-% end 
-% med_remov = horzcat(cell2table(boot_part_hg(:,2)), array2table(med_remov)); 
-% med_remov.Properties.VariableNames = {'Plant_Boiler','med_remov'}; 
-% overest_hg = innerjoin(overest_hg, med_remov);
-% % needed removal 
-% foo = (overest_hg.median.*overest_hg.Fuel_Consumed*907./overest_hg.gen_mwh - ...
-%     overest_hg.cems_hg_emf_mg_MWh)./(overest_hg.median.*overest_hg.Fuel_Consumed*907./overest_hg.gen_mwh);
-% overest_hg(:,end+1) = array2table(foo); 
-
-
-disp('end of main paper'); 
 % error('success'); 
-%% Aside, NERC region analysis
-[num,txt,raw] = xlsread('../data/EIA_923/EIA923_Schedules_2_3_4_5_M_12_2015_Final.xlsx',...
-    'Page 1 Generation and Fuel Data');
-nerc_table = unique(table_scrub(raw, [1 9], 6));
-nerc_table.Properties.VariableNames{1} = 'Plant_Code';
- 
-%%
-% calculate elec generation at the plant level 
-plant_gen_all_coal = unique(coal_generators.Plant_Code); 
-plant_gen_all_coal(:,2) = 0; 
-for i = 1:size(plant_gen_all_coal,1)
-    plant_gen_all_coal(i,2) = sum(coal_generators.Net_Generation_Year_To_Date(...
-        plant_gen_all_coal(i,1) == coal_generators.Plant_Code)); 
-end 
-plant_gen_all_coal = array2table(plant_gen_all_coal); 
-plant_gen_all_coal.Properties.VariableNames = {'Plant_Code','Gen_MWh'}; 
-plant_gen_all_coal = sortrows(plant_gen_all_coal,'Gen_MWh','descend');
-
-%% 
-coal_nerc_table = innerjoin(plant_gen_all_coal, nerc_table); 
-nerc_list = unique(nerc_table.NERC_Region); 
-% fraction of generation 
-array = zeros(size(nerc_list,1),5); 
-for i = 1:size(nerc_list,1)
-    idx = strcmp(coal_nerc_table.NERC_Region, nerc_list{i,1});
-    nerc_gen = sum(coal_nerc_table.Gen_MWh(idx));
-    plants = innerjoin(boot_plt_emis_hg(:,{'Plant_Code'}), coal_nerc_table(idx,:)); 
-    array(i,1) = sum(plants.Gen_MWh)/nerc_gen*100;
-    plants = innerjoin(boot_plt_emis_se(:,{'Plant_Code'}), coal_nerc_table(idx,:)); 
-    array(i,2) = sum(plants.Gen_MWh)/nerc_gen*100;
-    plants = innerjoin(boot_plt_emis_as(:,{'Plant_Code'}), coal_nerc_table(idx,:)); 
-    array(i,3) = sum(plants.Gen_MWh)/nerc_gen*100;
-    plants = innerjoin(boot_plt_emis_cl(:,{'Plant_Code'}), coal_nerc_table(idx,:)); 
-    array(i,4) = sum(plants.Gen_MWh)/nerc_gen*100;
-    array(i,5) = nerc_gen/1e6; 
-end 
-%%
-% fraction of plants
-array = zeros(size(nerc_list,1),5); 
-for i = 10 %1:size(nerc_list,1)
-    idx = strcmp(coal_nerc_table.NERC_Region, nerc_list{i,1});
-    nerc_plants = size(unique(coal_nerc_table.Plant_Code(idx)),1);
-    plants = innerjoin(boot_plt_emis_hg(:,{'Plant_Code'}), coal_nerc_table(idx,:));
-    array(i,1) = size(plants,1)/nerc_plants*100;
-    plants = innerjoin(boot_plt_emis_se(:,{'Plant_Code'}), coal_nerc_table(idx,:)); 
-    array(i,2) = size(plants,1)/nerc_plants*100;
-%     plants = innerjoin(boot_plt_emis_as(:,{'Plant_Code'}), coal_nerc_table(idx,:)); 
-%     array(i,3) = size(plants,1)/nerc_plants*100;
-%     plants = innerjoin(boot_plt_emis_cl(:,{'Plant_Code'}), coal_nerc_table(idx,:)); 
-%     array(i,4) = size(plants,1)/nerc_plants*100;
-    array(i,5) = nerc_plants; 
-end 
-%%
-boot_blr_emis_hg = innerjoin(boot_blr_emis_hg, coal_gen_boiler_apcd(:,{'Plant_Boiler','Nameplate_Capacity_MW','apcds'})); 
-boot_blr_emis_se = innerjoin(boot_blr_emis_se, coal_gen_boiler_apcd(:,{'Plant_Boiler','Nameplate_Capacity_MW','apcds'})); 
-boot_blr_emis_as = innerjoin(boot_blr_emis_as, coal_gen_boiler_apcd(:,{'Plant_Boiler','Nameplate_Capacity_MW','apcds'})); 
-boot_blr_emis_cl = innerjoin(boot_blr_emis_cl, coal_gen_boiler_apcd(:,{'Plant_Boiler','Nameplate_Capacity_MW','apcds'})); 
-
-sum(boot_blr_emis_hg.Gen_MWh)/ann_coal_gen*100
-sum(boot_blr_emis_se.Gen_MWh)/ann_coal_gen*100
-sum(boot_blr_emis_as.Gen_MWh)/ann_coal_gen*100
-% ans =
-%    48.1362
-sum(boot_blr_emis_cl.Gen_MWh)/ann_coal_gen*100
-
-ann_coal_cap = sum(coal_generators.Nameplate_Capacity_MW);
-sum(boot_blr_emis_hg.Nameplate_Capacity_MW)/ann_coal_cap*100
-sum(boot_blr_emis_se.Nameplate_Capacity_MW)/ann_coal_cap*100
-sum(boot_blr_emis_as.Nameplate_Capacity_MW)/ann_coal_cap*100
-% ans =
-%    48.1362
-sum(boot_blr_emis_cl.Nameplate_Capacity_MW)/ann_coal_cap*100
-% ans =
-%    33.8268
-% size(unique(boot_plt_emis_cl.Plant_Code),1)
-% ans =
-%    111
-% size(unique(boot_plt_emis_hg.Plant_Code),1)/size(unique(coal_generators.Plant_Code),1)*100
-% ans =
-%    39.9083
-% size(unique(boot_plt_emis_se.Plant_Code),1)/size(unique(coal_generators.Plant_Code),1)*100
-% ans =
-%    40.8257
-% size(unique(boot_plt_emis_as.Plant_Code),1)/size(unique(coal_generators.Plant_Code),1)*100
-% ans =
-%    37.3853
-% size(unique(boot_plt_emis_cl.Plant_Code),1)/size(unique(coal_generators.Plant_Code),1)*100
-% ans =
-%    25.4587
-
-% estimate number of plants with wFGDs (this matters for estimating average
-% FGD wastewater discharges)
-fprintf('number of plants with wFGD when estimating Hg: %3.0f\n', ...
-    size(unique(boot_blr_emis_hg.Plant_Code(floor(boot_blr_emis_hg.apcds/1000) == 1)),1))
-fprintf('number of plants with wFGD when estimating Se: %3.0f\n', ...
-    size(unique(boot_blr_emis_se.Plant_Code(floor(boot_blr_emis_se.apcds/1000) == 1)),1))
-fprintf('number of plants with wFGD when estimating As: %3.0f\n', ...
-    size(unique(boot_blr_emis_as.Plant_Code(floor(boot_blr_emis_as.apcds/1000) == 1)),1))
-fprintf('number of plants with wFGD when estimating Cl: %3.0f\n', ...
-    size(unique(boot_blr_emis_cl.Plant_Code(floor(boot_blr_emis_cl.apcds/1000) == 1)),1))
 
 %% End of main paper - Begin SI 
 %% SI Section 1 - Calculate coal generation at each eGRID subregion 
-coal_blrs_egrid = innerjoin(coal_gen_boilers, egrid_subrgns); % merge coal boilers (note, this includes all coal boilers) with egrid subregions
+coal_blrs_egrid = innerjoin(coal_generators, egrid_subrgns); % merge coal boilers (note, this includes all coal boilers) with egrid subregions
 subrgn_list = unique(egrid_subrgns.egrid_subrgn);  % compile list of subrgns 
 subrgn_list(1,:) = []; % remove first row which is blank 
 
 % for each subrgn, count the number of coal plants, add up coal capacity,
 % add up coal generation, and calculate coal capacity factor 
-num_cap_gen_cf = zeros(size(subrgn_list,1),4); 
+num_cap_gen_cf = zeros(size(subrgn_list,1),8); 
 for i = 1:size(subrgn_list,1)
     index = strcmp(coal_blrs_egrid.egrid_subrgn,subrgn_list{i,1});
     num_cap_gen_cf(i,1) = size(unique(coal_blrs_egrid.Plant_Code(index)),1); 
-    num_cap_gen_cf(i,2) = sum(coal_blrs_egrid.Nameplate_Capacity_MW(index)); 
-    num_cap_gen_cf(i,3) = sum(coal_blrs_egrid.Net_Generation_Year_To_Date(index)); 
-    num_cap_gen_cf(i,4) = num_cap_gen_cf(i,3)/(num_cap_gen_cf(i,2)*8760); 
+    num_cap_gen_cf(i,2) = sum(coal_blrs_egrid.Net_Generation_Year_To_Date(index))/1e6; 
+    num_cap_gen_cf(i,3) = sum(coal_blrs_egrid.Nameplate_Capacity_MW(index))/1e3; 
+    num_cap_gen_cf(i,4) = num_cap_gen_cf(i,2)*1e3/(num_cap_gen_cf(i,3)*8760); 
 end 
 
 % subrgn_coal_summary is used to create Table S5 in SI Section ??
-num_cap_gen_cf(i,4) = num_cap_gen_cf(i,3)/(num_cap_gen_cf(i,2)*8760); 
+
+% compare eGRID level stats with boilers included in analysis 
+coal_gen_boiler_apcd_egrid = innerjoin(coal_gen_boiler_apcd, egrid_subrgns);
+for i = 1:size(subrgn_list,1)
+    index = strcmp(coal_gen_boiler_apcd_egrid.egrid_subrgn,subrgn_list{i,1});
+    num_cap_gen_cf(i,5) = size(unique(coal_gen_boiler_apcd_egrid.Plant_Code(index)),1); 
+    num_cap_gen_cf(i,6) = sum(coal_gen_boiler_apcd_egrid.Net_Generation_Year_To_Date(index))/1e6; 
+end 
+num_cap_gen_cf(:,7) = num_cap_gen_cf(:,5)./num_cap_gen_cf(:,1)*100; 
+num_cap_gen_cf(:,8) = num_cap_gen_cf(:,6)./num_cap_gen_cf(:,2)*100; 
+
 subrgn_coal_summary = horzcat(subrgn_list, table2cell(array2table(num_cap_gen_cf))); 
 
 %% SI Section 4 - calculate fraction of coal purchases that are prepared 
@@ -501,11 +447,11 @@ subrgn_coal_summary = horzcat(subrgn_list, table2cell(array2table(num_cap_gen_cf
 
 %% SI Section 5 - variability of coal samples in COALQUAL
 % extract coalqual data 
-[num,txt,raw] = xlsread('../data/coalqual/coalqual_upper_wfips.xlsx','data'); % pull coalqual upper level with fips data  
+[num,txt,raw] = xlsread('../data/coalqual/coalqual_upper_wfips.xlsx','Sheet1'); % pull coalqual upper level with fips data  
 
 coalqual_samples = cell2table(raw(2:end,:)); % name the coalqual data as strat_table 
 coalqual_samples.Properties.VariableNames = raw(1,:); % set the table headers 
-%%
+
 % plot figure 
 close all; 
 plot_coalqual_samples(coalqual_samples, 'Hg'); 
@@ -516,12 +462,7 @@ plot_coalqual_samples(coalqual_samples, 'Cl');
 %% SI Section 7: median trace element partitioning for each boiler 
 test = plot_med_partition_cdf(boot_part_hg, boot_part_se, boot_part_as, boot_part_cl);
 
-%% testing function - delete later
-% as_part = test(:, 1:3); 
-% as_part(isnan(as_part(:,1)),:) = []; 
-% as_part(:,4) = sum(as_part(:,1:3),2); 
-% as_part2 = sort(as_part); 
-%% summary statistics - calculate median partitioning of each boiler 
+% summary statistics - calculate median partitioning of each boiler 
 boot_part_TE = boot_part_cl; % for other trace element, use boot_part_hg, boot_part_se, boot_part_as, or boot_part_cl;
 meds = zeros(size(boot_part_TE,1),3); 
 for i = 1:size(boot_part_TE)
@@ -620,7 +561,7 @@ for i = 1:12
     end 
     
 end 
-%% plot result 
+% plot result 
 close all;
 plot_coal_temporal_variation(cq_month_hg, cq_month_se, cq_month_as, cq_month_cl, plant_gen);
 
@@ -647,10 +588,11 @@ fprintf('Generation from plants that purchase coal from a single county: %1.0f\n
 % read in 2010 coal purchases
 disp('ignore total percent generation ... outputs in this section'); 
 [coal_gen_boilers_2010, coal_purchases_2010] = ...
-    compile_coal_purchases(coal_gen_boilers, ann_coal_gen, 2010); % import coal_purchases in 2010
+    compile_coal_purchases(coal_gen_boilers, ann_coal_gen, num_coal_plants, 2010); % import coal_purchases in 2010
+
 % create 2010 distribution of trace element concentrations in coal at the plant level 
-[cq_hg_2010, cq_se_2010, cq_as_2010, cq_cl_2010] = coalqual_dist(coal_gen_boiler_apcd, coal_purchases_2010, haps_sampling_months);
-boot_cq_TE_2010 = boot_coal_blend_conc(coal_gen_boiler_apcd, cq_hg_2010, cq_se_2010, cq_as_2010, cq_cl_2010, trials);
+[cq_hg_2010, cq_se_2010, cq_as_2010, cq_cl_2010, plants_no_cl_data_2010] = coalqual_dist(coal_gen_boilers_2010, coal_purchases_2010, haps_sampling_months);
+boot_cq_TE_2010 = boot_coal_blend_conc(coal_gen_boilers_2010, cq_hg_2010, cq_se_2010, cq_as_2010, cq_cl_2010, trials);
 boot_cq_TE_2010_tbl = cell2table(boot_cq_TE_2010); % convert to table 
 boot_cq_TE_2010_tbl.Properties.VariableNames = {'Plant_Code','hg_ppm','se_ppm','as_ppm','cl_ppm'}; 
 
@@ -692,10 +634,18 @@ fprintf('number of plants in MATS ICR for Hg, Se, As, and Cl: %3.0f, %3.0f, %3.0
 % size(innerjoin(plant_trace_haps(:,1), unique(coal_generators(:,{'Plant_Code'}))),1)
 
 % calculate generation produced in 2015 by plants in the MATS ICR 
-gen_haps = innerjoin(plant_trace_haps(:,{'Plant_Code'}), plant_gen); 
-fprintf('fraction of generation in 2015 produced by plants in MATS ICR %1.3f\n', ...
-    sum(gen_haps.Gen_MWh)/ann_coal_gen) % only covers about 46% of coal generation 
+% gen_haps = innerjoin(plant_trace_haps(:,{'Plant_Code'}), plant_gen); 
+% fprintf('fraction of generation in 2015 produced by plants in MATS ICR %1.3f\n', ...
+%     sum(gen_haps.Gen_MWh)/ann_coal_gen) % only covers about 46% of coal generation 
+
+gen_haps = innerjoin(plant_trace_haps(:,{'Plant_Code'}), coal_gen_boilers_2010); 
+fprintf('Generation in 2010 produced by plants in MATS ICR and all coal in 2010: %3.0f %3.0f\n', ...
+    sum(gen_haps.Net_Generation_Year_To_Date)/1e6, sum(coal_gen_boilers_2010.Net_Generation_Year_To_Date)/1e6) % only covers about 46% of coal generation 
+
 fprintf('number of plants in CQ and HAPS: %3.0f\n', size(comp_cq_haps,1)); 
+gen_haps_cq = innerjoin(comp_cq_haps(:,{'Plant_Code'}), coal_gen_boilers_2010); 
+fprintf('Generation in 2010 produced by plants in both MATS ICR and CQ: %3.0f\n', ...
+    sum(gen_haps_cq.Net_Generation_Year_To_Date)/1e6); 
 fprintf('number of plants in common for Hg, Se, As, and Cl: %3.0f, %3.0f, %3.0f, %3.0f\n', ...
     sum(~isnan(med_ppm_dif(:,1))), sum(~isnan(med_ppm_dif(:,2))), sum(~isnan(med_ppm_dif(:,3))), sum(~isnan(med_ppm_dif(:,4)))); 
 fprintf('median MATS conc Hg, Se, As, and Cl: %1.3f, %2.3f, %2.3f, %5.0f\n', median(haps_ppm,'omitnan')); 
@@ -707,23 +657,29 @@ fprintf('median percent errors Hg, Se, As, and Cl: %1.3f, %2.3f, %2.3f, %5.0f\n'
 % input coal and emissions data from the MATS ICR dataset
 partition_haps_data = partition_solid_liq_haps(haps_plant_data); 
 
+% bootstrap partitioning coefficients from hap air pollution control device data 
+boot_part_hg_haps = boot_partitioning_link(partition_haps_data, pm_removal, so2_removal, fgd_ww_ratio, trials, 'Hg'); 
+boot_part_se_haps = boot_partitioning_link(partition_haps_data, pm_removal, so2_removal, fgd_ww_ratio, trials, 'Se'); 
+boot_part_as_haps = boot_partitioning_link(partition_haps_data, pm_removal, so2_removal, fgd_ww_ratio, trials, 'As'); 
+boot_part_cl_haps = boot_partitioning_link(partition_haps_data, pm_removal, so2_removal, fgd_ww_ratio, trials, 'Cl');
+
 % estimate partitioning to not air (solids + liquids) from the MATS ICR 
 % compare partitioning between literature and MATS ICR 
-comp_lit_mats_hg = comp_TE_partitioning(partition_haps_data, boot_part_hg, 'Hg');
-comp_lit_mats_se = comp_TE_partitioning(partition_haps_data, boot_part_se, 'Se');
-comp_lit_mats_as = comp_TE_partitioning(partition_haps_data, boot_part_as, 'As');
-comp_lit_mats_cl = comp_TE_partitioning(partition_haps_data, boot_part_cl, 'Cl');
+comp_lit_mats_hg = comp_TE_partitioning(partition_haps_data, boot_part_hg_haps, 'Hg');
+comp_lit_mats_se = comp_TE_partitioning(partition_haps_data, boot_part_se_haps, 'Se');
+comp_lit_mats_as = comp_TE_partitioning(partition_haps_data, boot_part_as_haps, 'As');
+comp_lit_mats_cl = comp_TE_partitioning(partition_haps_data, boot_part_cl_haps, 'Cl');
 
-%% plot SI figure comparing removals 
+% plot SI figure comparing removals 
 close all; 
 plot_mats_lit_partition_comp(comp_lit_mats_hg, comp_lit_mats_se, comp_lit_mats_as, comp_lit_mats_cl);
 
 % summary statistics - calculate generation in the MATS ICR - literature comparison dataset
 foo = unique(vertcat(comp_lit_mats_hg(:,{'Plant_Boiler'}), comp_lit_mats_se(:,{'Plant_Boiler'}),...
     comp_lit_mats_as(:,{'Plant_Boiler'}), comp_lit_mats_cl(:,{'Plant_Boiler'}))); 
-foo = innerjoin(foo, coal_gen_boiler_apcd(:,{'Plant_Boiler','Net_Generation_Year_To_Date'})); 
+foo = innerjoin(foo, coal_gen_boilers_2010(:,{'Plant_Boiler','Net_Generation_Year_To_Date'})); 
 disp('fraction of coal generation from the MATS ICR - literature comparison dataset'); 
-sum(foo.Net_Generation_Year_To_Date)/ann_coal_gen
+sum(foo.Net_Generation_Year_To_Date)/sum(coal_gen_boilers_2010.Net_Generation_Year_To_Date)
 
 %% End SI 
 error('success, end of script'); 
@@ -776,3 +732,129 @@ sum(flag)
 
 
 
+%% Aside, NERC region analysis
+[num,txt,raw] = xlsread('../data/EIA_923/EIA923_Schedules_2_3_4_5_M_12_2015_Final.xlsx',...
+    'Page 1 Generation and Fuel Data');
+nerc_table = unique(table_scrub(raw, [1 9], 6));
+nerc_table.Properties.VariableNames{1} = 'Plant_Code';
+ 
+% calculate elec generation at the plant level 
+plant_gen_all_coal = unique(coal_generators.Plant_Code); 
+plant_gen_all_coal(:,2) = 0; 
+for i = 1:size(plant_gen_all_coal,1)
+    plant_gen_all_coal(i,2) = sum(coal_generators.Net_Generation_Year_To_Date(...
+        plant_gen_all_coal(i,1) == coal_generators.Plant_Code)); 
+end 
+plant_gen_all_coal = array2table(plant_gen_all_coal); 
+plant_gen_all_coal.Properties.VariableNames = {'Plant_Code','Gen_MWh'}; 
+plant_gen_all_coal = sortrows(plant_gen_all_coal,'Gen_MWh','descend');
+
+%% 
+coal_nerc_table = innerjoin(plant_gen_all_coal, nerc_table); 
+nerc_list = unique(nerc_table.NERC_Region); 
+% fraction of generation 
+array = zeros(size(nerc_list,1),5); 
+for i = 1:size(nerc_list,1)
+    idx = strcmp(coal_nerc_table.NERC_Region, nerc_list{i,1});
+    nerc_gen = sum(coal_nerc_table.Gen_MWh(idx));
+    plants = innerjoin(boot_plt_emis_hg(:,{'Plant_Code'}), coal_nerc_table(idx,:)); 
+    array(i,1) = sum(plants.Gen_MWh)/nerc_gen*100;
+    plants = innerjoin(boot_plt_emis_se(:,{'Plant_Code'}), coal_nerc_table(idx,:)); 
+    array(i,2) = sum(plants.Gen_MWh)/nerc_gen*100;
+    plants = innerjoin(boot_plt_emis_as(:,{'Plant_Code'}), coal_nerc_table(idx,:)); 
+    array(i,3) = sum(plants.Gen_MWh)/nerc_gen*100;
+    plants = innerjoin(boot_plt_emis_cl(:,{'Plant_Code'}), coal_nerc_table(idx,:)); 
+    array(i,4) = sum(plants.Gen_MWh)/nerc_gen*100;
+    array(i,5) = nerc_gen/1e6; 
+end 
+%%
+% fraction of plants
+array = zeros(size(nerc_list,1),5); 
+for i = 10 %1:size(nerc_list,1)
+    idx = strcmp(coal_nerc_table.NERC_Region, nerc_list{i,1});
+    nerc_plants = size(unique(coal_nerc_table.Plant_Code(idx)),1);
+    plants = innerjoin(boot_plt_emis_hg(:,{'Plant_Code'}), coal_nerc_table(idx,:));
+    array(i,1) = size(plants,1)/nerc_plants*100;
+    plants = innerjoin(boot_plt_emis_se(:,{'Plant_Code'}), coal_nerc_table(idx,:)); 
+    array(i,2) = size(plants,1)/nerc_plants*100;
+%     plants = innerjoin(boot_plt_emis_as(:,{'Plant_Code'}), coal_nerc_table(idx,:)); 
+%     array(i,3) = size(plants,1)/nerc_plants*100;
+%     plants = innerjoin(boot_plt_emis_cl(:,{'Plant_Code'}), coal_nerc_table(idx,:)); 
+%     array(i,4) = size(plants,1)/nerc_plants*100;
+    array(i,5) = nerc_plants; 
+end 
+
+
+%%
+% compare required coal concetnrations against estimate concentrations
+% compare against coal concentrations and removals reported in MATS 
+
+% therefore, investigate if these plants also have the highest mercury
+% concentrations in coal 
+
+% see if these plants have lower removals than expected 
+% overest_hg = innerjoin(overest_hg, conc_stats_hg(:,{'Plant_Code','median'}));
+% med_remov = zeros(size(boot_part_hg,1),1); 
+% for i = 1:size(boot_part_hg,1)
+%     med_remov(i) = median(boot_part_hg{i,3}(:,3));
+% end 
+% med_remov = horzcat(cell2table(boot_part_hg(:,2)), array2table(med_remov)); 
+% med_remov.Properties.VariableNames = {'Plant_Boiler','med_remov'}; 
+% overest_hg = innerjoin(overest_hg, med_remov);
+% % needed removal 
+% foo = (overest_hg.median.*overest_hg.Fuel_Consumed*907./overest_hg.gen_mwh - ...
+%     overest_hg.cems_hg_emf_mg_MWh)./(overest_hg.median.*overest_hg.Fuel_Consumed*907./overest_hg.gen_mwh);
+% overest_hg(:,end+1) = array2table(foo); 
+
+
+disp('end of main paper'); 
+% error('success'); 
+
+%%
+boot_blr_emis_hg = innerjoin(boot_blr_emis_hg, coal_gen_boiler_apcd(:,{'Plant_Boiler','Nameplate_Capacity_MW','apcds'})); 
+boot_blr_emis_se = innerjoin(boot_blr_emis_se, coal_gen_boiler_apcd(:,{'Plant_Boiler','Nameplate_Capacity_MW','apcds'})); 
+boot_blr_emis_as = innerjoin(boot_blr_emis_as, coal_gen_boiler_apcd(:,{'Plant_Boiler','Nameplate_Capacity_MW','apcds'})); 
+boot_blr_emis_cl = innerjoin(boot_blr_emis_cl, coal_gen_boiler_apcd(:,{'Plant_Boiler','Nameplate_Capacity_MW','apcds'})); 
+
+sum(boot_blr_emis_hg.Gen_MWh)/ann_coal_gen*100
+sum(boot_blr_emis_se.Gen_MWh)/ann_coal_gen*100
+sum(boot_blr_emis_as.Gen_MWh)/ann_coal_gen*100
+% ans =
+%    48.1362
+sum(boot_blr_emis_cl.Gen_MWh)/ann_coal_gen*100
+
+ann_coal_cap = sum(coal_generators.Nameplate_Capacity_MW);
+sum(boot_blr_emis_hg.Nameplate_Capacity_MW)/ann_coal_cap*100
+sum(boot_blr_emis_se.Nameplate_Capacity_MW)/ann_coal_cap*100
+sum(boot_blr_emis_as.Nameplate_Capacity_MW)/ann_coal_cap*100
+% ans =
+%    48.1362
+sum(boot_blr_emis_cl.Nameplate_Capacity_MW)/ann_coal_cap*100
+% ans =
+%    33.8268
+% size(unique(boot_plt_emis_cl.Plant_Code),1)
+% ans =
+%    111
+% size(unique(boot_plt_emis_hg.Plant_Code),1)/size(unique(coal_generators.Plant_Code),1)*100
+% ans =
+%    39.9083
+% size(unique(boot_plt_emis_se.Plant_Code),1)/size(unique(coal_generators.Plant_Code),1)*100
+% ans =
+%    40.8257
+% size(unique(boot_plt_emis_as.Plant_Code),1)/size(unique(coal_generators.Plant_Code),1)*100
+% ans =
+%    37.3853
+% size(unique(boot_plt_emis_cl.Plant_Code),1)/size(unique(coal_generators.Plant_Code),1)*100
+% ans =
+%    25.4587
+
+% estimate number of plants with wFGDs (this matters for estimating average
+% FGD wastewater discharges)
+fprintf('number of plants with wFGD when estimating Hg: %3.0f\n', ...
+    size(unique(boot_blr_emis_hg.Plant_Code(floor(boot_blr_emis_hg.apcds/1000) == 1)),1))
+fprintf('number of plants with wFGD when estimating Se: %3.0f\n', ...
+    size(unique(boot_blr_emis_se.Plant_Code(floor(boot_blr_emis_se.apcds/1000) == 1)),1))
+fprintf('number of plants with wFGD when estimating As: %3.0f\n', ...
+    size(unique(boot_blr_emis_as.Plant_Code(floor(boot_blr_emis_as.apcds/1000) == 1)),1))
+fprintf('number of plants with wFGD when estimating Cl: %3.0f\n', ...
+    size(unique(boot_blr_emis_cl.Plant_Code(floor(boot_blr_emis_cl.apcds/1000) == 1)),1))

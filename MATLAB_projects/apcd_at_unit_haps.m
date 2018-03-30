@@ -26,26 +26,27 @@ for i = 1:size(ctrls,1)
     index2 = regexp(str,'ESPh'); 
     index3 = regexp(str,'FF'); 
     if size(index1,1) > 0 && size(index2,1) > 0 % if there are cESPs and hsESPs 
-        flag(i,3) = 9; % default for multiple controls installed at one boiler 
+        flag(i,3) = 3; % default for multiple controls installed at one boiler 
     elseif size(index1,1) > 0 && size(index3,1) > 0 % csESPs and FFs present
-        flag(i,3) = 9;
+        flag(i,3) = 5;
     elseif size(index2,1) > 0 && size(index3,1) > 0 % hsESPs and FFs present 
-        flag(i,3) = 9;
+        flag(i,3) = 6;
     elseif size(index1,1) > 0 % csESP 
         flag(i,3) = 1;
     elseif size(index2,1) > 0 % hsESP
         flag(i,3) = 2;
     elseif size(index3,1) > 0 % FF
-        flag(i,3) = 3;
+        flag(i,3) = 4;
     end
     % for SO2 controls
-    index = regexp(str,'FGDw');
-    index2 = regexp(str,'FGD');
-    if size(index,1) > 0 && size(index,1) == size(index2,1) % wFGD reported & the number of wFGD reported = number of FGD units
-        flag(i,4) = 1; % only wFGD present
-    elseif size(index,1) > 0 && size(index2,1) > 0 % wFGD and other FGD controls reported 
-        flag(i,4) = 9; 
-    elseif size(index2,1) > 0 % only dFGD present 
+    index = regexp(str,'FGDw'); % wet FGD 
+    index2 = regexp(str,'FGDsd'); % dry FGD technologies
+    index3 = regexp(str,'FGDcfb'); % dry FGD technologies
+    if size(index,1) > 0 && (size(index2,1) > 0 || size(index3,1) > 0) % wFGD and other FGD controls reported
+        flag(i,4) = 3; 
+    elseif size(index,1) > 0 % wFGD reported 
+        flag(i,4) = 1; 
+    elseif size(index2,1) > 0 || size(index3,1) > 0 % only dFGD present 
         flag(i,4) = 2; 
     end
 

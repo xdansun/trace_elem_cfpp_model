@@ -24,11 +24,11 @@ function [cfpp_cq_hg, cfpp_cq_se, cfpp_cq_as, cfpp_cq_cl, plants_no_cl_data] = .
 
 warning('off'); 
 %% extract coalqual data 
-[num,txt,raw] = xlsread('../data/coalqual/coalqual_upper_wfips.xlsx','data'); % pull coalqual upper level with fips data  
+[num,txt,raw] = xlsread('../data/coalqual/coalqual_upper_wfips.xlsx','Sheet1'); % pull coalqual upper level with fips data  
 
 coalqual_samples = cell2table(raw(2:end,:)); % name the coalqual data as strat_table 
 coalqual_samples.Properties.VariableNames = raw(1,:); % set the table headers 
-
+coalqual_samples.Properties.VariableNames{10} = 'Apparent_Rank';
 %% count number of samples at each county 
 samples_in_counties = unique(coalqual_samples.fips_code); 
 samples_in_counties(:,2) = 0; 
@@ -115,7 +115,7 @@ for i = 1:size(plant_list,1) % for each power plant
     for j = 1:size(uniq_counties,1) % for each county the plant purchased coal from 
         uniq_purch(j) = sum(purchase_amt_at_plant(uniq_counties(j) == county_rank_at_plant)); % add up how much coal was purchased at the county 
     end 
-    uniq_purch(uniq_counties < 0) = []; % remove nonexisting counties 
+    uniq_purch(uniq_counties < 0) = []; % remove nonexisting counties   
     uniq_counties(uniq_counties < 0) = []; 
     plant_cq_dist(i,2) = {uniq_counties}; % append result to master array 
     plant_cq_dist(i,3) = {uniq_purch};
@@ -129,17 +129,64 @@ cfpp_cq_se = assign_CQ_dist(plant_cq_dist, coalqual_samples,'Se');
 cfpp_cq_as = assign_CQ_dist(plant_cq_dist, coalqual_samples,'As'); 
 % chlorine has less data than other trace elements, we keep track of which
 % plants we cannot model 
+
 [cfpp_cq_cl, plants_no_cl_data] = assign_CQ_dist(plant_cq_dist, coalqual_samples,'Cl'); 
 
+
+%% remove all plants without any purchases (2010 year introduces an edge case)
+cq_2010 = cfpp_cq_hg; 
+flag = zeros(size(cq_2010,1),1); 
+for i = 1:size(cq_2010,1)
+    if size(cq_2010{i,2},1) == 0
+        flag(i) = 1; 
+    end 
+end 
+cfpp_cq_hg = cq_2010(flag == 0,:); 
+
+cq_2010 = cfpp_cq_se; 
+flag = zeros(size(cq_2010,1),1); 
+for i = 1:size(cq_2010,1)
+    if size(cq_2010{i,2},1) == 0
+        flag(i) = 1; 
+    end 
+end 
+cfpp_cq_se = cq_2010(flag == 0,:); 
+
+cq_2010 = cfpp_cq_as; 
+flag = zeros(size(cq_2010,1),1); 
+for i = 1:size(cq_2010,1)
+    if size(cq_2010{i,2},1) == 0
+        flag(i) = 1; 
+    end 
+end 
+cfpp_cq_as = cq_2010(flag == 0,:); 
+
+cq_2010 = cfpp_cq_cl; 
+flag = zeros(size(cq_2010,1),1); 
+for i = 1:size(cq_2010,1)
+    if size(cq_2010{i,2},1) == 0
+        flag(i) = 1; 
+    end 
+end 
+cfpp_cq_cl = cq_2010(flag == 0,:); 
+
+cq_2010 = cfpp_cq_cl; 
+flag = zeros(size(cq_2010,1),1); 
+for i = 1:size(cq_2010,1)
+    if size(cq_2010{i,4},1) == 0
+        flag(i) = 1; 
+    end 
+end 
+cfpp_cq_cl = cq_2010(flag == 0,:); 
 
 end
 
 
-function [cfpp_cq_TE, plants_without_data] = assign_CQ_dist(cfpp_cq_TE, coalqual_samples,poll)
+function [cfpp_cq_TE, plants_wo_state_data] = assign_CQ_dist(cfpp_cq_TE, coalqual_samples,poll)
 %% add TE distribution associated with each county at the plant 
 % keep track of plants without coal information, namely they purchase from
 % states without coal data
-plants_without_data = zeros(size(cfpp_cq_TE,1),1); 
+plants_wo_state_data = zeros(size(cfpp_cq_TE,1),1); 
 TE_samples = table2array(coalqual_samples(:,poll)); 
 for j = 1:size(cfpp_cq_TE,1)
     county_rank_at_plant = cfpp_cq_TE{j,2}; 
@@ -154,15 +201,65 @@ for j = 1:size(cfpp_cq_TE,1)
             state_rank = floor(county_rank/1000) + mod(county_rank*10,10)/10; % divide the county rank by 1000 and add the decimal digit 
             coalqual_match = TE_samples(coalqual_samples.state_rank == state_rank); % match at the state level
             coalqual_match(isnan(coalqual_match)) = []; % remove all blank samples 
-            if size(coalqual_match,1) == 0
-                plants_without_data(j) = cfpp_cq_TE{j,1}; 
+            % if there is not a state match, then use basin level data 
+            if size(coalqual_match,1) == 0 && strcmp(poll,'Cl') == 1 
+                plants_wo_state_data(j) = 1; %cfpp_cq_TE{j,1}; % mark plants w/o state data but with basin data 
+                % 4 is AZ - Rocky mountain province
+                % 17 is IL - Eastern Interior
+                % 18 is IN - Eastern interior
+                % 29 is MO - Western interior
+                % 47 is TN - multiple basins, but plants purchase only from
+                % central appalachian basin
+                state = floor(county_rank/1000); 
+                rank = mod(county_rank*10,10)/10; % determine numerical rank of coal 
+                if state == 4 % Arizona, match Utah (49), CO (8), and NM (35)
+                    coalqual_samples_basin = ...
+                        coalqual_samples(strcmp(coalqual_samples.Province, 'ROCKY MOUNTAIN') == 1,:); 
+                    coalqual_match = TE_samples(coalqual_samples_basin.state_rank == (49+rank) | ...
+                        coalqual_samples_basin.state_rank == (4+rank) | ...        
+                        coalqual_samples_basin.state_rank == (8+rank) | ...
+                        coalqual_samples_basin.state_rank == (35+rank)); % match at the state level
+                    coalqual_match(isnan(coalqual_match)) = []; % remove all blank samples 
+                elseif state == 17 || state == 18 % Illinois, match IL, IN, and KY (21)
+                    coalqual_samples_basin = ...
+                        coalqual_samples(strcmp(coalqual_samples.Province, 'INTERIOR') == 1 & ...
+                        strcmp(coalqual_samples.Region, 'EASTERN') == 1,:);
+                    coalqual_match = TE_samples(coalqual_samples_basin.state_rank == (17+rank) | ...
+                        coalqual_samples_basin.state_rank == (18+rank) | ...
+                        coalqual_samples_basin.state_rank == (21+rank)); % match at the state level
+                    coalqual_match(isnan(coalqual_match)) = []; % remove all blank samples
+                elseif state == 29 % MO, IA (19), Nebraska (31), KS (20), OK (40), AR (5)
+                    coalqual_samples_basin = ...
+                        coalqual_samples(strcmp(coalqual_samples.Province, 'INTERIOR') == 1 & ...
+                        strcmp(coalqual_samples.Region, 'WESTERN') == 1,:);
+                    coalqual_match = TE_samples(coalqual_samples_basin.state_rank == (29+rank) | ...
+                        coalqual_samples_basin.state_rank == (19+rank) | ...
+                        coalqual_samples_basin.state_rank == (31+rank) | ...
+                        coalqual_samples_basin.state_rank == (20+rank) | ...
+                        coalqual_samples_basin.state_rank == (40+rank) | ...
+                        coalqual_samples_basin.state_rank == (5+rank)); % match at the state level
+                    coalqual_match(isnan(coalqual_match)) = []; % remove all blank samples
+                elseif state == 47 % TN, KY (21), WV (54), and VA (51)
+                    coalqual_samples_basin = ...
+                        coalqual_samples(strcmp(coalqual_samples.Province, 'EASTERN') == 1 & ...
+                        strcmp(coalqual_samples.Region, 'CENTRAL APPALACHIAN') == 1,:);
+                    coalqual_match = TE_samples(coalqual_samples_basin.state_rank == (47+rank) | ...
+                        coalqual_samples_basin.state_rank == (21+rank) | ...
+                        coalqual_samples_basin.state_rank == (54+rank) | ...
+                        coalqual_samples_basin.state_rank == (51+rank)); % match at the state level
+                    coalqual_match(isnan(coalqual_match)) = []; % remove all blank samples
+                else
+                    plants_wo_state_data(j) = cfpp_cq_TE{j,1}; 
+                end
+            elseif size(coalqual_match,1) == 0 
+                plants_wo_state_data(j) = cfpp_cq_TE{j,1}; 
             end 
             cfpp_cq_TE(j,i+3) = {coalqual_match};
             
         end 
     end 
 end 
-cfpp_cq_TE = cfpp_cq_TE(plants_without_data == 0,:); 
+cfpp_cq_TE = cfpp_cq_TE(plants_wo_state_data <= 1,:); 
 
 end
 

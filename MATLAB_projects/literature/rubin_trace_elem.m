@@ -11,19 +11,19 @@ apcd_combo = 100;
 %% boiler
 % bottom ash splits, see Table S2 
 % Hg, Se, As, and Cl partitioning
-bot_as_avg = 0.014;
-bot_hg_avg = 0.008;
-bot_se_avg = 0.015;
-bot_cl_avg = 0.001; % only one data point available 
-bot_ash_frac = [bot_hg_avg bot_se_avg bot_as_avg bot_cl_avg];
+bot_as = 0.014;
+bot_hg = 0.008;
+bot_se = 0.015;
+bot_cl = 0.001; % only one data point available for partitioning of each trace element 
+bot_ash_frac = [bot_hg bot_se bot_as bot_cl];
 
 %% ESP
-fly_as_avg = 0.974;
-fly_hg_avg = 0.254;
-fly_se_avg = 0.604;
-fly_cl_avg = 0.00005; % for chlorine, there's only a single data point 
+fly_as = 0.974;
+fly_hg = 0.254;
+fly_se = 0.604;
+fly_cl = 0.00005; 
 
-esp_ash_frac = [fly_hg_avg fly_se_avg fly_as_avg fly_cl_avg];
+esp_ash_frac = [fly_hg fly_se fly_as fly_cl];
 
 %% no wFGDs
 clpurge_frac = zeros(1,4); 

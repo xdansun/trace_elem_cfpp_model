@@ -1,5 +1,5 @@
 function [coal_generator_boiler_table, coal_purchase_nowc_domestic] = ...
-    compile_coal_purchases(coal_gen_boilers, ann_coal_gen, year)
+    compile_coal_purchases(coal_gen_boilers, ann_coal_gen, num_coal_plants, year)
 % This script removes plants from coal_gen_boiler_wcutoff if they:
 % use foreign fuels
 % do not have reported coal purchases 
@@ -93,10 +93,13 @@ coal_gen_boil_wcut_domestic = coal_gen_boilers(temp_cfpp_list(:,2)==0,:); % remo
 %% calculate generation missing from removing plants with international sources of coal 
 % by comparing the sum of the generation of the new coal-generator-boiler
 % table by the original coal generation from the entire fleet
+plants_domestic = size(unique(coal_gen_boil_wcut_domestic.Plant_Code),1);
 ann_domest_gen = sum(table2array(...
     coal_gen_boil_wcut_domestic(:,'Net_Generation_Year_To_Date'))); 
-fprintf('total percent generation lost after international fuels cutoff: %3.4f\n',...
+fprintf('total percent generation lost after international fuels cutoff: %3.2f %3.2f \n',...
+    (num_coal_plants - plants_domestic)/num_coal_plants*100, ...   
     (ann_coal_gen-ann_domest_gen)/ann_coal_gen*100); 
+
 
 %% remove all plants that do not have recorded coal purchases 
 % create a temporary list of coal plants from the new coal_generator list 
@@ -114,13 +117,16 @@ end
 % create a new table for coal-generator-boiler-wcutoff-wdomesticfuels 
 coal_gen_boil_wfuels = coal_gen_boil_wcut_domestic(temp_cfpp_list(:,2)==1,:);
 
-%% calculate generation missing from throwing out plants without coal
-% purchases and foreign fuels by comparing the generation of the new
+%% calculate generation and plants missing from throwing out plants without coal purchases
+% and foreign fuels by comparing the generation of the new
 % coal-generator-boiler table by the original coal generation from the
 % entire fleet 
+plants_no_fuels_gen = size(unique(coal_gen_boil_wfuels.Plant_Code),1); 
 ann_no_fuels_gen = sum(table2array(...
     coal_gen_boil_wfuels(:,'Net_Generation_Year_To_Date'))); 
-fprintf('total percent generation lost after no fuel purchase cutoff: %3.4f\n',...
+
+fprintf('total percent plants and generation lost after \nfuel purchase limitation: %3.2f %3.2f\n',...
+    (num_coal_plants - plants_no_fuels_gen)/num_coal_plants*100, ...
     (ann_coal_gen-ann_no_fuels_gen)/ann_coal_gen*100); 
 
 %% find all plants that use WC as a fuel source
@@ -153,9 +159,11 @@ coal_generator_boiler_table = coal_gen_boil_wfuels(temp_cfpp_list(:,2)==0,:);
 %% calculate generation lost from removing plants with wc purchases
 % compare the generation of the new coal-generator-boiler table by the
 % original coal generation from the entire fleet
+plants_no_wc_gen = size(unique(coal_generator_boiler_table.Plant_Code),1); 
 ann_no_wc_gen = sum(table2array(...
     coal_generator_boiler_table(:,'Net_Generation_Year_To_Date'))); 
-fprintf('total percent generation lost after WC cutoff: %3.4f\n',...
+fprintf('total percent plants and generation lost after WC cutoff: %3.2f %3.2f\n',...
+    (num_coal_plants - plants_no_wc_gen)/num_coal_plants*100,...
     (ann_coal_gen-ann_no_wc_gen)/ann_coal_gen*100); 
 
 %% link up coal purchases with county and state fips codes 

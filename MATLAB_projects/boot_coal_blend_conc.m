@@ -1,25 +1,25 @@
-function boot_cq_TE = boot_coal_blend_conc(coal_gen_boiler_wapcd_code, cq_hg_2015, cq_se_2015, ...
+function boot_cq_TE = boot_coal_blend_conc(coal_gen_boiler_apcd, cq_hg_2015, cq_se_2015, ...
     cq_as_2015, cq_cl_2015, trials)
 
-boot_cq_hg = boot_cq(coal_gen_boiler_wapcd_code, cq_hg_2015, trials); 
-boot_cq_se = boot_cq(coal_gen_boiler_wapcd_code, cq_se_2015, trials); 
-boot_cq_as = boot_cq(coal_gen_boiler_wapcd_code, cq_as_2015, trials); 
-boot_cq_cl = boot_cq(coal_gen_boiler_wapcd_code, cq_cl_2015, trials);
+boot_cq_hg = boot_cq(coal_gen_boiler_apcd, cq_hg_2015, trials); 
+boot_cq_se = boot_cq(coal_gen_boiler_apcd, cq_se_2015, trials); 
+boot_cq_as = boot_cq(coal_gen_boiler_apcd, cq_as_2015, trials); 
+boot_cq_cl = boot_cq(coal_gen_boiler_apcd, cq_cl_2015, trials);
 
-boot_cq_TE = horzcat(table2cell(unique(coal_gen_boiler_wapcd_code(:,{'Plant_Code'}))),...
+boot_cq_TE = horzcat(table2cell(unique(coal_gen_boiler_apcd(:,{'Plant_Code'}))),...
     boot_cq_hg, boot_cq_se, boot_cq_as, boot_cq_cl);
 
 end 
-function dist_plant_coal_blend = boot_cq(coal_gen_boiler_wapcd_code, cfpp_cq, trials)
-%% DESCRIPTION NEEDED 
+function dist_plant_coal_blend = boot_cq(coal_gen_boiler_apcd, cfpp_cq, trials)
 
 %% create distributions of TE concentration in coal at each boiler via randomly sampling
 % weight based on the purchases 
 
-plant_list = unique(coal_gen_boiler_wapcd_code.Plant_Code); 
+plant_list = unique(coal_gen_boiler_apcd.Plant_Code); 
 plant_list_cq_dist = table2array(cell2table(cfpp_cq(:,1)));
 dist_plant_coal_blend = cell(1,1); 
 for i = 1:size(plant_list,1) % for each coal plant 
+%     plant_list(i)
     if sum(plant_list_cq_dist == plant_list(i)) > 0 
         plant_data = cfpp_cq(plant_list_cq_dist == plant_list(i),:); 
         plant_purch = plant_data{1,3}; % gather coal purchases array at the plant level 

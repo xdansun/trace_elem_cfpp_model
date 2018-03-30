@@ -93,5 +93,15 @@ partition_haps_te.Properties.VariableNames = {'Unit_Name','apcds','hg_remov','se
 %% merge 
 partition_haps_te = innerjoin(partition_haps_te, haps_plant_data(:,{'Unit_Name','Plant_Code','Plant_Boiler'})); 
 
+%% filter out data that doesn't make sense 
+partition_haps_te(partition_haps_te.apcds == 0,:) = []; % remove rows where there are no removals 
+partition_haps_te.hg_remov(partition_haps_te.hg_remov < 0) = nan; % convert negative removals to NaN
+partition_haps_te.se_remov(partition_haps_te.se_remov < 0) = nan; % convert negative removals to NaN
+partition_haps_te.as_remov(partition_haps_te.as_remov < 0) = nan; % convert negative removals to NaN
+partition_haps_te.cl_remov(partition_haps_te.cl_remov < 0) = nan; % convert negative removals to NaN
 
+% remove boilers where all removals are estimated to be nan
+flag = isnan(partition_haps_te.hg_remov) + isnan(partition_haps_te.se_remov) + ...
+    isnan(partition_haps_te.as_remov) + isnan(partition_haps_te.cl_remov);
+partition_haps_te(flag == 4,:) = []; 
 end 

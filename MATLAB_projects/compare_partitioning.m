@@ -31,18 +31,42 @@ comp_part(:,end+1) = array2table(comp_part.med_liq_link - comp_part.med_liq_sys)
 comp_part.Properties.VariableNames(end-1:end) = {'dif_sol','dif_liq'}; 
 
 %% create a histogram that compares the partitioning
-figure('Color','w','Units','inches','Position',[1.25 1.25 4 4]) % was 1.25
-axes('Position',[0.15 0.15 0.8 0.8]) % x pos, y pos, x width, y height
+if strcmp(TE, 'Hg') == 1
+    figure('Color','w','Units','inches','Position',[1.25 1.25 8 8]) % was 1.25
+    axes('Position',[0.15 0.15 0.8 0.8]) % x pos, y pos, x width, y height
+    k = 1;
+elseif strcmp(TE,'Se') == 1
+    k = 2;
+elseif strcmp(TE,'As') == 1
+    k = 3;
+elseif strcmp(TE,'Cl') == 1
+    k = 4;
+end 
+
+subplot(2,2,k)
+if k == 1
+    set(gca, 'Position', [0.15 0.6 0.3 0.3])
+elseif k == 2
+    set(gca, 'Position', [0.6 0.6 0.3 0.3])
+elseif k == 3
+    set(gca, 'Position', [0.15 0.15 0.3 0.3])
+elseif k == 4
+    set(gca, 'Position', [0.6 0.15 0.3 0.3])
+end
+
+color_scheme = [215 25 28;
+                44 123 182;
+                255 255 191]/255;
 
 hold on;
-histogram(comp_part.dif_sol,'facecolor','r');
-histogram(comp_part.dif_liq,'facecolor','b');
+histogram(comp_part.dif_sol,'BinWidth',0.01,'LineWidth',1.5,'FaceAlpha',0,'EdgeColor',[1 0 0]); % ,'BinMethod','fd'
+histogram(comp_part.dif_liq,'BinWidth',0.01,'LineWidth',1.5,'FaceAlpha',0,'EdgeColor',[0 0 1]);
 
 set(gca,'FontName','Arial','FontSize',13)
 a=gca;
 % ylim([-0.2 0.2]); 
 
-xlabel('Difference in partitioning');
+xlabel({strcat(TE, ' partitioning fraction difference'),'between link and system method'});
 ylabel('Number of boilers');
 
 set(a,'box','off','color','none')
@@ -50,10 +74,12 @@ b=axes('Position',get(a,'Position'),'box','on','xtick',[],'ytick',[]);
 axes(a)
 linkaxes([a b])
 
-% xlim([-0.2 0.2]);
-xlim([-inf inf]);
-legend('Solid','Liquid','Location','northwest');
-legend boxoff;
+axis([-0.2 0.2 0 200]);
+% xlim([-inf inf]);
+if k == 1
+    legend('Solid','Liquid','Location','northeast');
+    legend boxoff;
+end 
 print(strcat('../Figures/comp_link_sys_part',TE),'-dpdf','-r300') % save figure (optional)
 
 

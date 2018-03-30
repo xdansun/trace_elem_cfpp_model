@@ -39,7 +39,7 @@ end
 %%
 % % create a histogram/cdf of coalqual blends by plant 
 % close all;
-figure('Color','w','Units','inches','Position',[0.25 4.25 4 4]) % was 1.25
+figure('Color','w','Units','inches','Position',[0.25 2.25 4 4]) % was 1.25
 axes('Position',[0.15 0.15 0.75 0.75]) % x pos, y pos, x width, y height
 trace_name_ppm = {'Hg_ppm','Se_ppm','As_ppm','Cl_ppm'}; 
 color = {'r','k','b','g'}; 

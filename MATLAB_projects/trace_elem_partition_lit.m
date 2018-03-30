@@ -1,6 +1,8 @@
 function [partitioning_lit, ww_ratio] = trace_elem_partition_lit
 %% description needed 
 
+% note dFGDs are programed as PM control because that makes implementation
+% easier
 %%
 addpath(genpath('literature'))
 %% establish ww coefficients
@@ -24,6 +26,9 @@ end
 %% create a cell that contains all studies and each unit's removal 
 partitioning_lit = cell(1,7); 
 
+% Karlsson has dFGD removal for Cl
+
+
 partitioning_lit(end,:) = rubin_trace_elem; 
 partitioning_lit(end+1,:) = klein_trace_elem; 
 partitioning_lit(end+1,:) = brown_1999_csesp; 
@@ -43,6 +48,7 @@ partitioning_lit(end+1,:) = pavlish_2003_FF_wfgd;
 % this one is done differently for convenience 
 partitioning_lit(end+1,1) = {'Cheng et al. (2009)'};
 partitioning_lit(end,2) = {1110};
+trace_exit_streams = cheng_trace_elem; 
 for k = 1:5
     partitioning_lit(end,k+2) = {trace_exit_streams(k,:)}; % second row contains fly ash removal
 end
@@ -74,7 +80,7 @@ partitioning_lit(end,5) = {[0 nan nan nan]};
 partitioning_lit(end,6) = {[0 nan nan nan]};
 partitioning_lit(end,7) = {[1 - mean(aci_removals(1,:)) nan nan nan]};
 
-partitioning_lit(end+1,1) = {'NRMRL (2005) 2'};
+partitioning_lit(end+1,1) = {'NRMRL (2005)'};
 partitioning_lit(end,2) = {201};
 partitioning_lit(end,3) = {[0 nan nan nan]}; 
 partitioning_lit(end,4) = {[mean(aci_removals(2,1:2)) nan nan nan]};
@@ -82,11 +88,17 @@ partitioning_lit(end,5) = {[0 nan nan nan]};
 partitioning_lit(end,6) = {[0 nan nan nan]};
 partitioning_lit(end,7) = {[1 - mean(aci_removals(2,1:2)) nan nan nan]};
 
+partitioning_lit(end+1,:) = felsvang_1994_dfgd_ff; 
+partitioning_lit(end+1,:) = felsvang_1994_dfgd_ff_aci; 
+partitioning_lit(end+1,:) = karlsson_1984_dFGD;
+
 %% international studies 
 % these are done using the old method, which produces the same output as
 % the new method. The new coding method uses fewer lines and is easier to
 % modify. The studies below have not been updated as they were not used in
 % the main modeling method 
+partitioning_lit(end+1,:) = aunela_tapola_dfgd; 
+
 trace_exit_streams = meij_2007_trace_elem([1 1 1 1]);
 partitioning_lit(end+1,1) = {'Meij et al. 2007'};
 partitioning_lit(end,2) = {1110};

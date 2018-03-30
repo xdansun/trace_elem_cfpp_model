@@ -15,7 +15,7 @@ bot_ash_frac = [0 0 0 nan]; %detection limits
 
 %% ESP
 % order of elements is Hg, Se, As, and Cl. 
-% data from Table 10 
+% data from Table 2 
 fly_ash_frac = [0.289 0.491 0.961 nan];
 
 %% no wFGD

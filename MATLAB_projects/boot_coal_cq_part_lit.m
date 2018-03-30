@@ -130,7 +130,7 @@ for i = 1:size(plt_blr_TE_emis,1)
     annual_loadings(:,2) = annual_loadings(:,2)+ prctile(emis(:,2), [25, 50, 75])'/1e9; 
     annual_loadings(:,3) = annual_loadings(:,3)+ prctile(emis(:,3), [25, 50, 75])'/1e9; 
 end 
-fprintf('annual emissions (kg) 25, 50, and 75 percentile in: \n'); 
+fprintf('annual emissions (metric tons) 25, 50, and 75 percentile in: \n'); 
 fprintf('solid:\t %3.0f %3.0f %3.0f\n', annual_loadings(:,1));
 fprintf('liq: \t %3.2f %3.2f %3.2f\n', annual_loadings(:,2));
 fprintf('gas: \t %3.0f %3.0f %3.0f\n', annual_loadings(:,3));

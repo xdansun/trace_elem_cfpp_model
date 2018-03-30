@@ -17,12 +17,12 @@ bot_ash_ratio = [0 0 nan nan];
 
 %% ESP
 % data from Figure 3
-fly_as_avg = nan;
-fly_hg_avg = 0.30;
-fly_se_avg = 0.20;
+fly_hg = 0.30;
+fly_se = 0.20;
+fly_as = nan;
 fly_cl_avg = nan; % for chlorine, there's only a single data point 
 
-fly_ash_ratio = [fly_hg_avg fly_se_avg fly_as_avg fly_cl_avg];
+fly_ash_ratio = [fly_hg fly_se fly_as fly_cl_avg];
 
 %% no wFGD
 cl_purge = zeros(1,4); 

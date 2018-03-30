@@ -1,4 +1,4 @@
-function coal_gen_boiler_wfuels = boiler_fuel_consumption(coal_gen_boiler, ann_coal_gen)
+function coal_gen_boiler_wfuels = boiler_fuel_consumption(coal_gen_boiler, ann_coal_gen, num_coal_plants)
 % This function performs two tasks. First it takes the
 % cfpp:generator:boiler:apcd table and merges in the fuel consumption at
 % the boiler level so that the final table coal_gen_boiler_wapcd_wfuels is
@@ -53,8 +53,11 @@ coal_gen_boiler_wfuels = innerjoin(coal_gen_boiler, unique_boiler_fuels);
 
 %%
 % calculate generation lost from removing boilers without fuel consumption 
+num_plants_wfuel = size(unique(coal_gen_boiler_wfuels.Plant_Code),1); 
 generation_wconsumption = sum(coal_gen_boiler_wfuels.Net_Generation_Year_To_Date);
-fprintf('total percent generation lost after removing plants with fuel consumption: %3.4f\n',...
+
+fprintf('total percent plants and generation lost due to fuel consumption data limitation: %3.2f %3.2f\n',...
+    (num_coal_plants - num_plants_wfuel)/num_coal_plants*100,...
     (ann_coal_gen - generation_wconsumption)/ann_coal_gen*100); 
 
 end 

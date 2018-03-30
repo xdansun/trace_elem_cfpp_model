@@ -18,7 +18,7 @@ esp_ash_output = [nan nan nan mean([0.917 0.989 0.9996 0.969 0.969 0.71 0.78 0.6
 
 %% wFGD 
 % Data obtained from Table VI
-wfgd_output = [nan nan nan 0]; 
+wfgd_output = [nan nan nan nan]; 
 
 gypsum_output = wfgd_output; % assume everything is a solid, wastewater ratios from other studies will be applied later 
 Clpurge_output = zeros(1,4); 
@@ -33,7 +33,7 @@ partition_by_apc = vertcat(bot_ash_output, esp_ash_output, gypsum_output,...
     Clpurge_output, emission_output);  
 for k = 1:4 % for each trace element 
     % normalize the partition coefficient based on the total output 
-    partition_by_apc(:,k) = partition_by_apc(:,k)/sum(partition_by_apc(:,k)); 
+    partition_by_apc(:,k) = partition_by_apc(:,k)/sum(partition_by_apc(:,k),'omitnan'); 
 end 
 
 %% format output 

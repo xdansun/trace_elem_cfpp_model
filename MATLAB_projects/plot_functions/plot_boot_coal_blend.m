@@ -32,8 +32,8 @@ for i = 1:size(plants_to_plot,2)
 end
 plot_data(plot_data == 0) = nan;
 
-figure('Color','w','Units','inches','Position',[1.25 5.25 4 4]) % was 1.25
-axes('Position',[0.15 0.15 0.8 0.8]) % x pos, y pos, x width, y height
+figure('Color','w','Units','inches','Position',[1.25 1.25 4 4]) % was 1.25
+axes('Position',[0.2 0.2 0.75 0.75]) % x pos, y pos, x width, y height
 
 boxplot(plot_data);
 hold on;
@@ -50,6 +50,16 @@ elseif strcmp(TE,'Cl') == 1
     ylim([0 2500]); % cl
 else
     error('incorrect trace element input');
+end
+
+if strcmp(TE,'Hg') == 1
+    set(gca, 'Position', [0.2 0.2 0.7 0.7])
+elseif strcmp(TE,'Se') == 1
+    set(gca, 'Position', [0.2 0.2 0.7 0.7])
+elseif strcmp(TE,'As') == 1
+    set(gca, 'Position', [0.2 0.2 0.7 0.7])
+elseif strcmp(TE,'Cl') == 1
+    set(gca, 'Position', [0.2 0.2 0.7 0.7])
 end
 
 labels = cell(1,1);

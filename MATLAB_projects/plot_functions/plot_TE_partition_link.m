@@ -14,6 +14,9 @@ pm_removal(20,2) = {500}; % update laird et al. for the DSI removals
 pm_removal(21,2) = {701}; % change codes on ACI studies so that the graph can be ordered correctly
 pm_removal(22,2) = {702};  
 pm_removal(11,2) = {703}; 
+pm_removal(23,2) = {902}; % change codes on dFGD studies so they appear in the right order 
+pm_removal(24,2) = {904}; 
+pm_removal(25,2) = {903}; 
 so2_removal{end,3} = [nan nan nan nan]; 
 
 apcd_hg = floor(rem(table2array(cell2table(pm_removal(:,2)))/1,10)); % pull the hg control codes 
@@ -109,15 +112,15 @@ for k = 1:4
 
     %     xlabel('air pollution control combinations');
     if k == 1
-        ylabel('Hg removal fraction');
-        legend('Solid','Liquid','Air');
-        legend boxoff;
+        ylabel('Hg partitioning fraction');
+%         legend('Solid','Liquid','Air');
+%         legend boxoff;
     elseif k == 2
-        ylabel('Se removal fraction');
+        ylabel('Se partitioning fraction');
     elseif k == 3
-        ylabel('As removal fraction');
+        ylabel('As partitioning fraction');
     elseif k == 4
-        ylabel('Cl removal fraction');
+        ylabel('Cl partitioning fraction');
     end
     
     print(strcat('../Figures/Fig2_TE_partition_by_study_',num2str(k)),'-dpdf','-r300'); 

@@ -1,4 +1,4 @@
-function [coal_generators, coal_gen_boiler_wcutoff, ann_coal_gen] = ...
+function [coal_generators, coal_gen_boiler_wcutoff, ann_coal_gen, num_coal_plants] = ...
     create_coal_single_gen_boiler
 % this function goes through the EIA spreadsheets and filters for
 % generators that use coal, generators that are linked one-to-one with
@@ -146,12 +146,17 @@ coal_gen_boiler_wcutoff(:,{'Generator_ID','Energy_Source_3','Energy_Source_4',..
     'Energy_Source_5','Energy_Source_6',}) = [];
 
 %% Inspect generation losses from cfpp for filtering generators out 
-% test to make sure that eliminiation of coal generators is permissible 
+% percent generation lost by looking only at CFPPs with one generator linked to one boiler: 4.8440
 ann_coal_gen = sum(table2array(coal_generators(:,'Net_Generation_Year_To_Date'))); 
 ann_coal_single_gen = sum(table2array(coal_gen_boiler(:,'Net_Generation_Year_To_Date'))); 
 fprintf('percent generation lost by looking only at CFPPs with one generator linked to one boiler: %3.4f\n',...
     (ann_coal_gen-ann_coal_single_gen)/ann_coal_gen*100); 
-% percent generation lost by looking only at CFPPs with one generator linked to one boiler: 4.8440
+
+% percent of plants lost by looking at CFPPs with one generator linked to one boiler
+num_coal_plants = size(unique(coal_generators.Plant_Code),1); 
+num_single_gb_plants = size(unique(coal_gen_boiler.Plant_Code),1); 
+fprintf('percent plants excluded by removing CFPPs with one generator \nlinked to multiple boilers and vice-versa: %3.4f\n',...
+    (num_coal_plants-num_single_gb_plants)/num_coal_plants*100); 
 
 % add up generation with capacity cutoff to see the difference 
 % calculate total generation 

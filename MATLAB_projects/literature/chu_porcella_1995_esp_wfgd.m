@@ -6,7 +6,7 @@ function [output_cell, study_name, apcd_combo] = chu_porcella_1995_esp_wfgd
 % Journal: Water, Air, and Soil Pollution
 
 %% define study name and air pollution control combination
-study_name = 'Chu and Porcella csESP wFGD (1995)'; 
+study_name = 'Chu and Porcella (1995)'; 
 apcd_combo = 1100; 
 
 %% boiler 

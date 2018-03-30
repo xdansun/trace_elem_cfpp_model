@@ -74,13 +74,13 @@ for k = 1:4
     a=gca;
    
     if k == 1
-        xlabel('Median Hg waste stream factor (g/MWh)'); 
+        xlabel({'Median Hg emissions','intensity (g/MWh)'}); 
     elseif k == 2
-        xlabel('Median Se waste stream factor (g/MWh)'); 
+        xlabel({'Median Se emissions','intensity (g/MWh)'}); 
     elseif k == 3
-        xlabel('Median As waste stream factor (g/MWh)'); 
+        xlabel({'Median As emissions','intensity (g/MWh)'}); 
     elseif k == 4
-        xlabel('Median Cl waste stream factor (g/MWh)'); 
+        xlabel({'Median Cl emissions','intensity (g/MWh)'}); 
     end 
     ylabel('F(x)'); 
     legend({'Solid','Liquid','Gas'},'Location','SouthEast'); legend boxoff; 

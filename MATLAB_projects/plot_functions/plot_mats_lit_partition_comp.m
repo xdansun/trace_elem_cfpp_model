@@ -4,10 +4,11 @@ function plot_mats_lit_partition_comp(comp_lit_mats_hg, comp_lit_mats_se, ...
 %% DESCRIPTION NEEDED 
 
 %% plot histogram comparing differences 
-figure('Color','w','Units','inches','Position',[0.25 0.25 4 4]) % was 1.25
+figure('Color','w','Units','inches','Position',[0.25 0.25 8 4]) % was 1.25
 axes('Position',[0.18 0.18 0.75 0.75]) % x pos, y pos, x width, y height
 
-% subplot(1,2,1);
+subplot(1,2,1);
+set(gca, 'Position', [0.1 0.2 0.33 0.7])
 poll = {'Hg','Se','As','Cl'}; 
 color = {'r','k','b','g'}; 
 
@@ -44,7 +45,7 @@ for k = 1:4
     end 
     set(h,'LineWidth',1.8,'Color',color{k});
 
-    xlabel(['Median MATS ICR removal']);
+    xlabel(['Median MATS ICR partitioning' char(10) 'fraction to solids and liquids']);
     ylabel('F(x)');
 
     set(gca,'FontName','Arial','FontSize',13)
@@ -59,13 +60,14 @@ for k = 1:4
 
 end 
 
-print(strcat('../Figures/Fig_solid_liq_partition_mats'),'-dpdf','-r300') % save figure (optional)
+% print(strcat('../Figures/Fig_solid_liq_partition_mats'),'-dpdf','-r300') % save figure (optional)
 
 %% plot histogram comparing differences 
-figure('Color','w','Units','inches','Position',[0.25 0.25 4 4]) % was 1.25
-axes('Position',[0.18 0.18 0.75 0.75]) % x pos, y pos, x width, y height
+% figure('Color','w','Units','inches','Position',[0.25 0.25 4 4]) % was 1.25
+% axes('Position',[0.18 0.18 0.75 0.75]) % x pos, y pos, x width, y height
 
-% subplot(1,2,2);
+subplot(1,2,2);
+set(gca, 'Position', [0.55 0.2 0.33 0.7])
 poll = {'Hg','Se','As','Cl'}; 
 color = {'r','k','b','g'}; 
 
@@ -102,8 +104,9 @@ for k = 1:4
     end 
     set(h,'LineWidth',1.8,'Color',color{k});
 
-    xlabel(['Difference in median bootstrap ' char(10) ...
-        'removal and median MATS ICR removal']);
+    xlabel(['Difference in median partitioning fraction' char(10) ...
+        'to solids and liquids between literature based' char(10) ...
+        'estimates and MATS ICR measurements']);
     ylabel('F(x)');
 
     set(gca,'FontName','Arial','FontSize',13)

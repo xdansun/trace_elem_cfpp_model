@@ -6,7 +6,7 @@ function [output_cell, study_name, apcd_combo, waste_stream_fractions] = brown_1
 % Journal: Journal of Air and Waste management association 
 
 %% define study name and air pollution control combination
-study_name = 'Brown et al. FF (1999)'; 
+study_name = 'Brown et al. (1999)'; 
 apcd_combo = 400; 
 
 %% boiler 
