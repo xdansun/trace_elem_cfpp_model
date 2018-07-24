@@ -131,7 +131,7 @@ temp_cfpp_wcap(:,end+1) = 0; % add a column of zeros to identify which generator
 for i = 1:size(unique_cfpps,1)
     % pull all generators at the specific power plant 
     generators_at_plant = temp_cfpp_wcap(temp_cfpp_wcap(:,1) == unique_cfpps(i),2); 
-    if sum(generators_at_plant) >= cap_cutoff % if the sum of the nameplate capacities exceed 100 MW
+    if sum(generators_at_plant) >= cap_cutoff % if the sum of the nameplate capacities exceed 1 MW
         temp_cfpp_wcap(temp_cfpp_wcap(:,1) == unique_cfpps(i),end) = 1; % set the last column to 1
     end 
 end 
@@ -157,6 +157,12 @@ num_coal_plants = size(unique(coal_generators.Plant_Code),1);
 num_single_gb_plants = size(unique(coal_gen_boiler.Plant_Code),1); 
 fprintf('percent plants excluded by removing CFPPs with one generator \nlinked to multiple boilers and vice-versa: %3.4f\n',...
     (num_coal_plants-num_single_gb_plants)/num_coal_plants*100); 
+
+% percent of boilers lost by looking at CFPPs with one generator linked to one boiler
+num_coal_gen = size(coal_generators,1); 
+num_single_gen = size(coal_gen_boiler,1); 
+fprintf('percent plants excluded by removing CFPPs with one generator \nlinked to multiple boilers and vice-versa: %3.4f\n',...
+    (num_coal_gen-num_single_gen)); 
 
 % add up generation with capacity cutoff to see the difference 
 % calculate total generation 

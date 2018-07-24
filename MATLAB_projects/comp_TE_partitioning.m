@@ -13,6 +13,9 @@ end
 boot_remov_TE_tbl(:,end+1) = array2table(solid_liq_removs);
 boot_remov_TE_tbl.Properties.VariableNames(end) = {'boot_med_remov'};
 
+boot_remov_TE_tbl(:,end+1) = array2table(1 - solid_liq_removs); 
+boot_remov_TE_tbl.Properties.VariableNames(end) = {'boot_gas_part'}; 
+
 % select haps removal for correct pollutant 
 if strcmp(poll,'Hg') == 1
     haps_remov = haps_remov_wcode(:,[3 7 8]);
@@ -30,15 +33,28 @@ haps_remov.Properties.VariableNames(1) = {'haps_med_remov'};
 haps_remov(isnan(haps_remov.haps_med_remov),:) = []; 
 haps_remov(haps_remov.haps_med_remov < 0,:) = []; % remove negative removal coefficients 
 
+% create gas phase partitioning for haps_remov
+haps_remov(:,end+1) = array2table(1 - haps_remov.haps_med_remov);
+haps_remov.Properties.VariableNames(end) = {'haps_gas_part'}; 
+
 comp_partition_lit_mats = innerjoin(haps_remov, boot_remov_TE_tbl);
 comp_partition_lit_mats(:,end+1) = array2table(comp_partition_lit_mats.boot_med_remov -...
     comp_partition_lit_mats.haps_med_remov);
 comp_partition_lit_mats.Properties.VariableNames(end) = {'remov_dif'};    
+comp_partition_lit_mats(:,end+1) = array2table(comp_partition_lit_mats.boot_gas_part -...
+    comp_partition_lit_mats.haps_gas_part);
+comp_partition_lit_mats.Properties.VariableNames(end) = {'gas_dif'};
+
 
 %% summary statistics
-fprintf('%s median partition into solids + liquids from MATS ICR and literature %1.3f, %1.3f\n', ...
-    poll, median(comp_partition_lit_mats.haps_med_remov), median(comp_partition_lit_mats.boot_med_remov))
+% fprintf('%s median partition into solids + liquids from MATS ICR and literature %1.3f, %1.3f\n', ...
+%     poll, median(comp_partition_lit_mats.haps_med_remov), median(comp_partition_lit_mats.boot_med_remov))
+% fprintf('%s mean and median difference of MATS and literature %1.3f %1.3f\n', ...
+%     poll, mean(comp_partition_lit_mats.remov_dif), median(comp_partition_lit_mats.remov_dif))
+fprintf('%s median gas partition from MATS ICR and literature %1.3f, %1.3f\n', ...
+    poll, median(comp_partition_lit_mats.haps_gas_part), median(comp_partition_lit_mats.boot_gas_part))
 fprintf('%s mean and median difference of MATS and literature %1.3f %1.3f\n', ...
-    poll, mean(comp_partition_lit_mats.remov_dif), median(comp_partition_lit_mats.remov_dif))
-    
+    poll, mean(comp_partition_lit_mats.gas_dif), median(comp_partition_lit_mats.gas_dif))    
+
+
 end 

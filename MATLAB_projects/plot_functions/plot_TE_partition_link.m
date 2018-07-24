@@ -87,11 +87,13 @@ for k = 1:4
                 255 255 191]/255; 
             
     if k == 1 % if Hg 
-        figure('Color','w','Units','inches','Position',[0.25 3.25 9 3]) % was 1.25
+        figure('Color','w','Units','inches','Position',[0.25 3.25 9.5 3]) % was 1.25
     elseif k == 2 % if Se
-        figure('Color','w','Units','inches','Position',[0.25 3.25 4 3]) % was 1.25
-    else 
-        figure('Color','w','Units','inches','Position',[0.25 3.25 3 3]) % was 1.25
+        figure('Color','w','Units','inches','Position',[0.25 3.25 4.5 3]) % was 1.25
+    elseif k == 3 % if As
+        figure('Color','w','Units','inches','Position',[0.25 3.25 3.8 3]) % was 1.25
+    else
+        figure('Color','w','Units','inches','Position',[0.25 3.25 3.2 3]) % was 1.25
     end 
     axes('Position',[0.15 0.35 0.8 0.6]) % x pos, y pos, x width, y height
     hold on;

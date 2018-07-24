@@ -1,4 +1,4 @@
-function [plt_blr_TE_emis, plt_TE_emis] = boot_coal_cq_part_lit(...
+function [plt_blr_TE_emis, plt_TE_emis, plt_blr_TE_input] = boot_coal_cq_part_lit(...
     coal_gen_boiler_apcd, boot_cq_TE, boot_remov_TE, ann_coal_gen, poll)
 
 %% DESCRIPTION NEEDED 
@@ -42,12 +42,11 @@ gen = plt_blr_coal_remov.Net_Generation_Year_To_Date;
 lit_phases_TE_array = plt_blr_coal_remov.remov_dist; 
 
 blrs_to_remov = zeros(size(plt_blr_coal_remov,1),1); 
-plt_blr_TE_emis = cell(size(plt_blr_coal_remov,1),2); 
+plt_blr_TE_emis = cell(size(plt_blr_coal_remov,1),5);
+plt_blr_TE_input = zeros(size(plt_blr_coal_remov,1),1); 
 for i = 1:size(plt_blr_coal_remov,1)
     coal_dist = plt_blr_coal_remov{i,k+5}{1,1}; % find coal distribution associated with the plant of the boiler 
     if sum(isnan(coal_dist)) == 1 % if the TE input is all nans then leave just nan 
-%         plt_blr_TE_emis(i,1) = {nan};
-%         plt_blr_TE_emis(i,2) = {nan};
         blrs_to_remov(i) = 1; % mark boilers to be removed 
     else
         phase_dist = lit_phases_TE_array{i,1}; % find bootstrapped phase partitions associated with each boiler 
@@ -55,6 +54,7 @@ for i = 1:size(plt_blr_coal_remov,1)
         % without unit conversion we have ppm * tons/yr * kg/tons = kg/yr
         % with unit conversion (10^-6 g Hg/g coal) * tons coal/yr * 907.185 kg/tons * 10^3 g/kg * 10^3 mg/g = mg/yr
         TE_input = repmat(coal_dist*fuel_consumed(i)*907.185,[1 3]); % calculate in weight the amount of coal entering the boiler 
+        plt_blr_TE_input(i) = mean(TE_input(:,1))/1e6;
         plt_blr_TE_emis(i,1) = {TE_input.*phase_dist}; % calculate TE output in each phase [mg]
         plt_blr_TE_emis(i,2) = {TE_input.*phase_dist/gen(i)}; % calculate TE output in each phase [mg/MWh]
         med_emf = median(TE_input.*phase_dist/gen(i)); 
@@ -64,6 +64,7 @@ for i = 1:size(plt_blr_coal_remov,1)
     end 
 end 
 
+plt_blr_TE_input = horzcat(plt_blr_coal_remov(:,{'Plant_Code','Plant_Boiler'}), array2table(plt_blr_TE_input));
 plt_blr_TE_emis = horzcat(plt_blr_coal_remov(:,{'Plant_Code','Plant_Boiler','Net_Generation_Year_To_Date'}), cell2table(plt_blr_TE_emis)); 
 plt_blr_TE_emis.Properties.VariableNames = {'Plant_Code','Plant_Boiler','Gen_MWh','emis_mg','emf_mg_MWh','sol','liq','gas'}; 
 plt_blr_TE_emis = plt_blr_TE_emis(blrs_to_remov == 0,:); % remove boilers with nan coal inputs 
@@ -120,7 +121,7 @@ plt_TE_emis.Properties.VariableNames(end-1:end) = {'emis_mg','emf_mg_MWh'};
 % number of plants and generation of boilers modeled
 foo = innerjoin(plt_blr_TE_emis(:,{'Plant_Code','Plant_Boiler'}), coal_gen_boiler_apcd(:,{'Plant_Boiler','Net_Generation_Year_To_Date','apcds'}));
 fprintf('Estimated %s emissions for %1.0f plants\n', poll, size(unique(foo.Plant_Code),1)); 
-fprintf('Estimated %s emissions for %1.0f plants with wFGD \n', poll, size(unique(foo.Plant_Code(foo.apcds > 999)),1)); 
+% fprintf('Estimated %s emissions for %1.0f plants with wFGD \n', poll, size(unique(foo.Plant_Code(foo.apcds > 999 & foo.apcds < 2000)),1)); 
 fprintf('Estimated %s emissions for %1.3f (fraction) of total coal generation\n', poll, sum(foo.Net_Generation_Year_To_Date)/ann_coal_gen); 
 
 annual_loadings = zeros(3,3); 

@@ -39,6 +39,13 @@ if year == 2015
     row_start = 5; % identify row number in which spreadsheet starts; index is the row of the header
     % create a table of all plants with fuel consumption and electricity generation  
     all_fuels = table_scrub(raw, column_rows, row_start); % create table from raw data
+elseif year == 2016 
+    [num,txt,raw] = xlsread('../data/eia9232016/EIA923_Schedules_2_3_4_5_M_12_2016_Final_Revision.xlsx',...
+        'Page 5 Fuel Receipts and Costs');
+    column_rows = [1:4 8:14 16:20]; % identify columns of interest (performed numerically)
+    row_start = 5; % identify row number in which spreadsheet starts; index is the row of the header
+    % create a table of all plants with fuel consumption and electricity generation  
+    all_fuels = table_scrub(raw, column_rows, row_start); % create table from raw data
 elseif year == 2010
     [num,txt,raw] = xlsread('../data/eia9232010/EIA923 SCHEDULES 2_3_4_5 Final 2010_edited.xlsx',...
     'Page 5 Fuel Receipts and Cost');

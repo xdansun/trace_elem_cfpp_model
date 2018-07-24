@@ -1,5 +1,5 @@
 function [cfpp_cq_hg, cfpp_cq_se, cfpp_cq_as, cfpp_cq_cl, plants_no_cl_data] = ...
-    coalqual_dist(coal_gen_boiler_apcd, fuel_purchases, plant_months)
+    coalqual_dist(coal_gen_boiler_apcd, fuel_purchases, plant_months, LDL_flag)
 % rewrite the description 
 % Note that this script currently only works for Hg, as we are performing
 % CEMS comparisons 
@@ -29,6 +29,43 @@ warning('off');
 coalqual_samples = cell2table(raw(2:end,:)); % name the coalqual data as strat_table 
 coalqual_samples.Properties.VariableNames = raw(1,:); % set the table headers 
 coalqual_samples.Properties.VariableNames{10} = 'Apparent_Rank';
+
+%% modify for lower detection limit 
+if LDL_flag == 1
+    teq = coalqual_samples.HgQ; 
+    count = [0 0 0 0];
+    for i = 1:size(teq,1)
+        q = teq{i,1};
+        if ischar(q) == 1 && contains(q,'L') == 1
+            coalqual_samples.Hg(i) = 0; 
+            count(1,1) = count(1,1) + 1;
+        end 
+    end 
+    teq = coalqual_samples.SeQ; 
+    for i = 1:size(teq,1)
+        q = teq{i,1};
+        if ischar(q) == 1 && contains(q,'L') == 1
+            coalqual_samples.Se(i) = 0; 
+            count(1,2) = count(1,2) + 1;
+        end 
+    end 
+    teq = coalqual_samples.AsQ; 
+    for i = 1:size(teq,1)
+        q = teq{i,1};
+        if ischar(q) == 1 && contains(q,'L') == 1
+            coalqual_samples.As(i) = 0; 
+            count(1,3) = count(1,3) + 1;
+        end 
+    end 
+    teq = coalqual_samples.ClQ; 
+    for i = 1:size(teq,1)
+        q = teq{i,1};
+        if ischar(q) == 1 && contains(q,'L') == 1
+            coalqual_samples.Cl(i) = 0; 
+            count(1,4) = count(1,4) + 1;
+        end 
+    end 
+end 
 %% count number of samples at each county 
 samples_in_counties = unique(coalqual_samples.fips_code); 
 samples_in_counties(:,2) = 0; 
@@ -182,7 +219,7 @@ cfpp_cq_cl = cq_2010(flag == 0,:);
 end
 
 
-function [cfpp_cq_TE, plants_wo_state_data] = assign_CQ_dist(cfpp_cq_TE, coalqual_samples,poll)
+function [cfpp_cq_TE, plants_wo_state_data] = assign_CQ_dist(cfpp_cq_TE, coalqual_samples, poll)
 %% add TE distribution associated with each county at the plant 
 % keep track of plants without coal information, namely they purchase from
 % states without coal data
@@ -190,6 +227,9 @@ plants_wo_state_data = zeros(size(cfpp_cq_TE,1),1);
 TE_samples = table2array(coalqual_samples(:,poll)); 
 for j = 1:size(cfpp_cq_TE,1)
     county_rank_at_plant = cfpp_cq_TE{j,2}; 
+    if size(county_rank_at_plant,2) == 0 
+        county_rank_at_plant = -1;
+    end 
     for i = 1:size(county_rank_at_plant,1) % for each county 
         % pull all coalqual samples that match the rank and location data
         coalqual_match = TE_samples(coalqual_samples.county_rank == county_rank_at_plant(i)); % match at the county level
@@ -215,7 +255,7 @@ for j = 1:size(cfpp_cq_TE,1)
                 if state == 4 % Arizona, match Utah (49), CO (8), and NM (35)
                     coalqual_samples_basin = ...
                         coalqual_samples(strcmp(coalqual_samples.Province, 'ROCKY MOUNTAIN') == 1,:); 
-                    coalqual_match = TE_samples(coalqual_samples_basin.state_rank == (49+rank) | ...
+                    coalqual_match = coalqual_samples_basin.Cl(coalqual_samples_basin.state_rank == (49+rank) | ...
                         coalqual_samples_basin.state_rank == (4+rank) | ...        
                         coalqual_samples_basin.state_rank == (8+rank) | ...
                         coalqual_samples_basin.state_rank == (35+rank)); % match at the state level
@@ -224,7 +264,7 @@ for j = 1:size(cfpp_cq_TE,1)
                     coalqual_samples_basin = ...
                         coalqual_samples(strcmp(coalqual_samples.Province, 'INTERIOR') == 1 & ...
                         strcmp(coalqual_samples.Region, 'EASTERN') == 1,:);
-                    coalqual_match = TE_samples(coalqual_samples_basin.state_rank == (17+rank) | ...
+                    coalqual_match = coalqual_samples_basin.Cl(coalqual_samples_basin.state_rank == (17+rank) | ...
                         coalqual_samples_basin.state_rank == (18+rank) | ...
                         coalqual_samples_basin.state_rank == (21+rank)); % match at the state level
                     coalqual_match(isnan(coalqual_match)) = []; % remove all blank samples
@@ -232,7 +272,7 @@ for j = 1:size(cfpp_cq_TE,1)
                     coalqual_samples_basin = ...
                         coalqual_samples(strcmp(coalqual_samples.Province, 'INTERIOR') == 1 & ...
                         strcmp(coalqual_samples.Region, 'WESTERN') == 1,:);
-                    coalqual_match = TE_samples(coalqual_samples_basin.state_rank == (29+rank) | ...
+                    coalqual_match = coalqual_samples_basin.Cl(coalqual_samples_basin.state_rank == (29+rank) | ...
                         coalqual_samples_basin.state_rank == (19+rank) | ...
                         coalqual_samples_basin.state_rank == (31+rank) | ...
                         coalqual_samples_basin.state_rank == (20+rank) | ...
@@ -243,7 +283,7 @@ for j = 1:size(cfpp_cq_TE,1)
                     coalqual_samples_basin = ...
                         coalqual_samples(strcmp(coalqual_samples.Province, 'EASTERN') == 1 & ...
                         strcmp(coalqual_samples.Region, 'CENTRAL APPALACHIAN') == 1,:);
-                    coalqual_match = TE_samples(coalqual_samples_basin.state_rank == (47+rank) | ...
+                    coalqual_match = coalqual_samples_basin.Cl(coalqual_samples_basin.state_rank == (47+rank) | ...
                         coalqual_samples_basin.state_rank == (21+rank) | ...
                         coalqual_samples_basin.state_rank == (54+rank) | ...
                         coalqual_samples_basin.state_rank == (51+rank)); % match at the state level
@@ -260,6 +300,6 @@ for j = 1:size(cfpp_cq_TE,1)
     end 
 end 
 cfpp_cq_TE = cfpp_cq_TE(plants_wo_state_data <= 1,:); 
-
+%%
 end
 

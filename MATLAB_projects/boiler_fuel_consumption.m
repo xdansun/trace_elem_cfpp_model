@@ -16,6 +16,8 @@ function coal_gen_boiler_wfuels = boiler_fuel_consumption(coal_gen_boiler, ann_c
 %% create a boiler:fuels table 
 [num,txt,raw] = xlsread('../data/EIA_923/EIA923_Schedules_2_3_4_5_M_12_2015_Final.xlsx',...
     'Page 3 Boiler Fuel Data');
+% [num,txt,raw] = xlsread('../data/eia9232016/EIA923_Schedules_2_3_4_5_M_12_2016_Final_Revision.xlsx',...
+%     'Page 3 Boiler Fuel Data');
 column_number = [1 12 14 15 64]; 
 row_start = 6; % identify row number in which spreadsheet starts; index is the row of the header
 % create a table of all plants with fuel consumption and electricity generation  

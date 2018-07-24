@@ -30,6 +30,7 @@ for k = 1:4
 %     subplot(2,2,k);
     hold on;
     plotx = sort(comp_lit_mats_TE.haps_med_remov);
+%     plotx = sort(comp_lit_mats_TE.haps_med_remov);
     ploty = linspace(0,1,size(plotx,1));
 
 %     plot(plotx, ploty);

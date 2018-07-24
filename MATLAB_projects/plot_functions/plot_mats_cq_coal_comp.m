@@ -65,7 +65,7 @@ scale = max(divide_array);
 color = {'r','k','b','g'}; 
 hold on;
 
-for k = 1:4
+for k = 4 %1:4
     plotx = sort(med_ppm_dif(:,k))*scale/divide_array(k); 
     plotx(isnan(plotx)) = []; 
     ploty = linspace(0,1,size(plotx,1));
