@@ -1,5 +1,18 @@
-function plot_med_emf_cdf(boot_emis_hg, boot_emis_se, boot_emis_as, boot_emis_cl)
-%% DESCRIPTION NEEDED 
+function test = plot_med_emf_cdf_blr(boot_emis_hg, boot_emis_se, boot_emis_as, boot_emis_cl)
+%% DESCRIPTION
+% plot the median bootstrapped generation normalized mass flow rate at each boiler 
+% 
+% inputs:
+% boot_emis_hg (table) - Table of Hg mass flow rates and generation
+% normalized mass flow rates at the boiler level to solid, liquid, and gas
+% with generation at the boiler
+% the other inputs are the same as boot_emis_hg, but for se, as and cl
+% 
+% outputs: 
+% test (array) - sorted array for median bootstrapped generation
+% normalized mass flow rates. used for debugging purposes and for quick
+% calculations 
+% figures in PDF form 
 
 %% for each boiler, calculate the median emf of each trace element 
 med_array = nan(400,12); 
@@ -36,7 +49,7 @@ for k = 1:4
 end 
 
 %%
-% test = sort(med_array);
+test = sort(med_array);
 
 %% create cdf 
 
@@ -77,13 +90,13 @@ for k = 1:4
     a=gca;
    
     if k == 1
-        xlabel({'Median Hg emissions','intensity (g/MWh)'}); 
+        xlabel({'Median Hg generation normalized','mass flow rate (g/MWh)'}); 
     elseif k == 2
-        xlabel({'Median Se emissions','intensity (g/MWh)'}); 
+        xlabel({'Median Se generation normalized','mass flow rate (g/MWh)'}); 
     elseif k == 3
-        xlabel({'Median As emissions','intensity (g/MWh)'}); 
+        xlabel({'Median As generation normalized','mass flow rate (g/MWh)'}); 
     elseif k == 4
-        xlabel({'Median Cl emissions','intensity (g/MWh)'}); 
+        xlabel({'Median Cl generation normalized','mass flow rate (g/MWh)'}); 
     end 
     ylabel('F(x)'); 
     legend({'Solid','Liquid','Gas'},'Location','SouthEast'); legend boxoff; 
@@ -96,7 +109,8 @@ for k = 1:4
     linkaxes([a b])
 
     % scale = [0.15 8 20 600]; 
-    scale = [0.1 2 10 400]; % for better readability
+%     scale = [0.1 2 10 400]; % for better readability
+    scale = [0.15 4.8 12 430]; % scale at the 99 percentile; for better readability
     axis([0 scale(k) 0 1]);
     
 end 

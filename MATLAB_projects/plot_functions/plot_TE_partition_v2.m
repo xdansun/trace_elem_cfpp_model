@@ -1,13 +1,21 @@
 function [lit_phases_by_TE, legend_cell] = plot_TE_partition_v2(lit_removal)
-% calculate air, solid, and liquid removals 
-% merge pm removal into so2 removal
-
-%% plot by air pollution control combination 
+% calculate air, solid, and liquid partitioning using "whole" or "set" approach
+% partitioning is calculated based on the entire combination of air
+% pollution controls 
+% plot by air pollution control combination 
 % 0 is irrelevant, 100 is csESP, 101 is csESP+ACI, 200 is hsESP, 300 is FF,
 % 301 is FF + ACI , 1100 is wFGD + csESP, 1110 is SCR+csESP+wFGD, 1200 is
 % wFGD + hsESP, 1210 is wFGD+hsESP+SCR, 1300 FF+wFGD, 1301 ACI+FF+wFGD, etc
-% it may be worth only showing control combinations we have data for 
 
+% input: 
+% lit_removal (cell) - compilation of partitioning of trace elements
+% at each air pollution control device  
+% 
+% output:
+% lit_phases_by_TE - partitioning of trace elements into solid, liquid, and
+% gas phase based on the exact partitioning control combination studied by
+% authors 
+% legend_cell - list of studies that appear in the order of the plot
 %% convert lit_removal to cell for plot
 lit_to_plot = cell2table(lit_removal); 
 lit_to_plot.lit_removal2(11) = 703; % for the Flora study

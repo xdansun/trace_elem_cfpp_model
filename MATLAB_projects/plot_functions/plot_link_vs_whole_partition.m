@@ -1,4 +1,20 @@
-function [part_by_apc_link, part_by_apc_whole] = plot_link_vs_whole_partition(pm_removal, so2_removal, lit_phases_by_TE, fgd_ww_ratio)
+function [part_by_apc_link, part_by_apc_whole] = plot_link_vs_whole_partition(...
+                                pm_removal, so2_removal, lit_phases_by_TE, fgd_ww_ratio)
+% compare link and whole partition model approaches 
+% 
+% inputs:
+% pm_removal (cell) - partitioning of each trace element by the particulate
+% matter control for each study
+% so2_removal (cell) - partitioning of each trace element by the sulfur
+% dioxide control for each study
+% lit_phases_by_TE - partitioning of trace elements into solid, liquid, and
+% gas phase based on the exact partitioning control combination studied by
+% authors 
+% fgd_ww_ratio (double) - ratio of trace element in Cl purge to gypsum
+%
+% output:
+% legend_cell (cell) - list of studies that appear in the order of the plot
+
 
 %% solve for the median partition coefficients by each air pollution control device 
 % using the linked based approach 

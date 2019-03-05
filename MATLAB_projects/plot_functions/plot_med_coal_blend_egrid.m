@@ -1,11 +1,29 @@
 function plot_med_coal_blend_egrid(boot_cq_TE_subrgn, subrgn_list)
-%% do the following
-% distribution of each plant 
-% find the median, min, max, 25th %, and 75th %
-% sort by medians with plant info and the above percentiles 
-% plot cdf 
-% plot 25th and 75th distributions in the same manner, use triangle for
-% 25th, square for 75th; see if it needs to be broken down further 
+%% Description:
+% plot the median concentration of the coal blend at each eGRID subregion 
+% 
+% Regarding FRCC, only 2 plants have Cl concentrations in the FRCC subrgn.
+% two purchase from similar counties with high chlorine concentrations in
+% coal.
+%
+% inputs 
+% boot_cq_TE_subrgn (table) - Boostrapped concentrations of trace
+% elements in the coal blend by plant. First column are the plant numbers.
+% Columns 2-5 are the bootstrapped concentrations of the coal blend
+% entering the boiler for Hg, Se, As, and Cl, respectively. Last column is
+% the eGRID subregion 
+% subrgn_list (cell) - list of every eGRID subregion in the U.S.
+% 
+% outputs:
+% figures that combine to make an SI Figure 
+
+%% 
+% alternative running in the mass_bal_main_script 
+% for i = 1:size(subrgn_list,1)
+%     subrgn = subrgn_list{i,1};
+%     subrgn_cq = boot_cq_TE_subrgn(strcmp(boot_cq_TE_subrgn.egrid_subrgn,subrgn),:);
+% %     plot_med_coal_blend_egrid(table2cell(subrgn_cq(:,1:5)),subrgn);
+% end
 
 for m = 1:size(subrgn_list,1)
 

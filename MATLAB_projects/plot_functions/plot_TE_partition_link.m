@@ -2,22 +2,33 @@ function legend_cell = plot_TE_partition_link(pm_removal, so2_removal, fgd_ww_ra
 % calculate air, solid, and liquid removals 
 % plots link based approach 
 
+% inputs
+% pm_removal (cell) - partitioning of each trace element by the particulate
+% matter control for each study
+% so2_removal (cell) - partitioning of each trace element by the sulfur
+% dioxide control for each study
+% fgd_ww_ratio (double) - ratio of trace element in Cl purge to gypsum
+%
+% output:
+% legend_cell (cell) - list of studies that appear in the order of the plot
+% figures in PDF form 
+
 %% plot by air pollution control combination 
 % 0 is irrelevant, 100 is csESP, 101 is csESP+ACI, 200 is hsESP, 400 is FF,
 % 401 is FF + ACI , 1100 is wFGD + csESP, 1110 is SCR+csESP+wFGD, 1200 is
 % wFGD + hsESP, 1210 is wFGD+hsESP+SCR, 1400 FF+wFGD, 1401 ACI+FF+wFGD, etc
-% it may be worth only showing control combinations we have data for 
 
 %% plot figure
-
-pm_removal(20,2) = {500}; % update laird et al. for the DSI removals 
-pm_removal(21,2) = {701}; % change codes on ACI studies so that the graph can be ordered correctly
-pm_removal(22,2) = {702};  
-pm_removal(11,2) = {703}; 
-pm_removal(23,2) = {902}; % change codes on dFGD studies so they appear in the right order 
-pm_removal(24,2) = {904}; 
-pm_removal(25,2) = {903}; 
-so2_removal{end,3} = [nan nan nan nan]; 
+if size(pm_removal,1) > 13 % if running domestic 
+    pm_removal(20,2) = {500}; % update laird et al. for the DSI removals 
+    pm_removal(21,2) = {701}; % change codes on ACI studies so that the graph can be ordered correctly
+    pm_removal(22,2) = {702};  
+    pm_removal(11,2) = {703}; 
+    pm_removal(23,2) = {902}; % change codes on dFGD studies so they appear in the right order 
+    pm_removal(24,2) = {904}; 
+    pm_removal(25,2) = {903}; 
+    so2_removal{end,3} = [nan nan nan nan]; 
+end 
 
 apcd_hg = floor(rem(table2array(cell2table(pm_removal(:,2)))/1,10)); % pull the hg control codes 
 apcd_nox = floor(rem(table2array(cell2table(so2_removal(:,2)))/10,10)); % pull the nox control codes 
@@ -25,7 +36,7 @@ apcd_pm = floor(rem(table2array(cell2table(pm_removal(:,2)))/100,10)); % pull th
 apcd_so2 = floor(rem(table2array(cell2table(so2_removal(:,2)))/1000,10)); % pull the so2 control codes 
 pm_removal_apc = horzcat(pm_removal, table2cell(array2table(apcd_pm)), table2cell(array2table(apcd_hg))); 
 so2_removal_apc = horzcat(so2_removal, table2cell(array2table(apcd_so2)), table2cell(array2table(apcd_nox))); 
-% pm_removal_apc(20,2) = ; 
+
 test = zeros(1,1); 
 
 close all;

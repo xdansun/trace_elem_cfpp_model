@@ -1,7 +1,18 @@
 function plot_mats_lit_partition_comp(comp_lit_mats_hg, comp_lit_mats_se, ...
     comp_lit_mats_as, comp_lit_mats_cl)
 
-%% DESCRIPTION NEEDED 
+%% DESCRIPTION 
+% plot the validation/comparison analysis of partitioning coefficients
+% between literature data and empirically measured HAPS data. 
+%
+% inputs:
+% comp_lit_mats_hg (table) - boilers with the median gas phase
+% partitioning calculated using HAPS data and calculated using
+% bootstrapping approach along with the differences at the boiler level 
+% other inputs are the same as comp_lit_mats_hg but for Se, As, and Cl. 
+%
+% outputs: 
+% figures in PDF form 
 
 %% plot histogram comparing differences 
 figure('Color','w','Units','inches','Position',[0.25 0.25 8 4]) % was 1.25
@@ -29,7 +40,7 @@ for k = 1:4
 
 %     subplot(2,2,k);
     hold on;
-    plotx = sort(comp_lit_mats_TE.haps_med_remov);
+    plotx = sort(comp_lit_mats_TE.haps_gas_part);
 %     plotx = sort(comp_lit_mats_TE.haps_med_remov);
     ploty = linspace(0,1,size(plotx,1));
 
@@ -46,7 +57,7 @@ for k = 1:4
     end 
     set(h,'LineWidth',1.8,'Color',color{k});
 
-    xlabel(['Median MATS ICR partitioning' char(10) 'fraction to solids and liquids']);
+    xlabel(['Median gas phase partitioning' char(10) 'fraction calculated from MATS ICR data']);
     ylabel('F(x)');
 
     set(gca,'FontName','Arial','FontSize',13)
@@ -56,12 +67,12 @@ for k = 1:4
     b=axes('Position',get(a,'Position'),'box','on','xtick',[],'ytick',[]);
     axes(a)
     linkaxes([a b])
-    legend({'Mercury','Selenium','Arsenic','Chlorine'},'Location','NorthWest');
+    legend({'Mercury','Selenium','Arsenic','Chlorine'},'Location','SouthEast');
     legend boxoff;
 
 end 
 
-% print(strcat('../Figures/Fig_solid_liq_partition_mats'),'-dpdf','-r300') % save figure (optional)
+print(strcat('../Figures/Fig_solid_liq_partition_mats'),'-dpdf','-r300') % save figure (optional)
 
 %% plot histogram comparing differences 
 % figure('Color','w','Units','inches','Position',[0.25 0.25 4 4]) % was 1.25
@@ -89,7 +100,7 @@ for k = 1:4
 
 %     subplot(2,2,k);
     hold on;
-    plotx = sort(comp_lit_mats_TE.remov_dif);
+    plotx = sort(comp_lit_mats_TE.gas_dif);
     ploty = linspace(0,1,size(plotx,1));
 
 %     plot(plotx, ploty);
@@ -105,8 +116,8 @@ for k = 1:4
     end 
     set(h,'LineWidth',1.8,'Color',color{k});
 
-    xlabel(['Difference in median partitioning fraction' char(10) ...
-        'to solids and liquids between literature based' char(10) ...
+    xlabel(['Difference in median gas partitioning' char(10) ...
+        'fraction between literature based' char(10) ...
         'estimates and MATS ICR measurements']);
     ylabel('F(x)');
 

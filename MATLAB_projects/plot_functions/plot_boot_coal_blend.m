@@ -1,9 +1,19 @@
 function plot_data = plot_boot_coal_blend(boot_cq_TE, TE)
 
-%% DESCRIPTION NEEDED
-% state purpose of script here. 
-
-% TE is the trace element abbreviation for the plot we are generating 
+%% DESCRIPTION 
+% illustrate variation in trace element concentrations in coal blend at the
+% plant level for five sample plants. Choose five random plants 
+% 
+% input 
+% boot_cq_TE (cell) - Boostrapped concentrations of trace elements in the 
+% coal blend by plant. First column are the plant numbers. Columns 2-5 are
+% the bootstrapped concentrations of the coal blend entering the boiler for
+% Hg, Se, As, and Cl, respectively. 
+% TE (str) - pollutant of interest 
+% 
+% output
+% plot_data (array) - data output of the plots 
+% SI Figure in pdf 
 
 %% combine the coalqual trace distribution 
 plant_trace_coalqual = cell2table(boot_cq_TE); % convert plant_purch to a table for coalqual data to merge 
